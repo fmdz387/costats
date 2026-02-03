@@ -1,0 +1,39 @@
+# Build output
+bin/
+obj/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.vsix
+
+# Rider
+.idea/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+nuget.exe
+
+# Test results
+TestResults/
+
+# Publish output
+publish/
+app.publish/
+
+# Logs and diagnostics
+*.log
+*.tlog
+*.pdb
+
+# OS files
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+[Dd]esktop.ini

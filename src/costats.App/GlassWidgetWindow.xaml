@@ -1,0 +1,243 @@
+<Window x:Class="costats.App.GlassWidgetWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:costats.App"
+        Title="costats"
+        Width="360"
+        Height="580"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        AllowsTransparency="True"
+        Background="Transparent">
+
+    <!-- WindowChrome to extend glass into client area -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0"
+                      ResizeBorderThickness="0"
+                      CornerRadius="16"
+                      GlassFrameThickness="-1"
+                      UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <!-- Color palette for light purple/lavender theme -->
+        <Color x:Key="BgColor">#E8E3F2</Color>
+        <Color x:Key="TextPrimary">#1E1B2E</Color>
+        <Color x:Key="TextSecondary">#4A4760</Color>
+        <Color x:Key="TextMuted">#7A7890</Color>
+        <Color x:Key="TextFaint">#9A98A8</Color>
+        <Color x:Key="DividerColor">#D0CDE0</Color>
+        <Color x:Key="TrackColor">#D8D5E8</Color>
+
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
+        <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+        <SolidColorBrush x:Key="TextFaintBrush" Color="{StaticResource TextFaint}" />
+        <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource DividerColor}" />
+        <SolidColorBrush x:Key="TrackBrush" Color="{StaticResource TrackColor}" />
+
+        <!-- Accent colors -->
+        <SolidColorBrush x:Key="CodexAccent" Color="#10B981" />
+        <SolidColorBrush x:Key="ClaudeAccent" Color="#F97316" />
+        <SolidColorBrush x:Key="SessionAccent" Color="#F59E0B" />
+        <SolidColorBrush x:Key="WeeklyAccent" Color="#8B5CF6" />
+        <SolidColorBrush x:Key="CostTodayAccent" Color="#10B981" />
+        <SolidColorBrush x:Key="CostMonthAccent" Color="#6366F1" />
+
+        <!-- Codex icon (OpenAI logo) -->
+        <Geometry x:Key="CodexIconPath">M83.77 42.81C84.67 40.11 84.98 37.26 84.68 34.44C84.38 31.62 83.49 28.89 82.05 26.44C77.69 18.84 68.92 14.94 60.35 16.77C57.98 14.13 54.96 12.17 51.59 11.07C48.21 9.97 44.61 9.77 41.14 10.51C37.67 11.24 34.45 12.88 31.81 15.25C29.17 17.62 27.2 20.64 26.1 24.01C23.32 24.58 20.69 25.74 18.4 27.41C16.1 29.07 14.18 31.21 12.78 33.68C8.37 41.26 9.37 50.83 15.25 57.33C14.35 60.03 14.04 62.88 14.34 65.7C14.63 68.52 15.52 71.25 16.96 73.7C21.33 81.3 30.1 85.21 38.67 83.37C40.56 85.49 42.87 87.19 45.46 88.34C48.05 89.5 50.86 90.09 53.7 90.07C62.48 90.08 70.26 84.41 72.94 76.05C75.72 75.48 78.35 74.32 80.64 72.66C82.94 70.99 84.86 68.85 86.26 66.38C90.62 58.81 89.62 49.3 83.77 42.81ZM53.7 84.84C50.2 84.84 46.8 83.61 44.11 81.37L44.58 81.1L60.51 71.9C60.91 71.67 61.24 71.34 61.47 70.94C61.7 70.54 61.82 70.09 61.82 69.63V47.18L68.56 51.07C68.62 51.11 68.67 51.17 68.68 51.25V69.85C68.66 78.12 61.97 84.82 53.7 84.84ZM21.5 71.08C19.74 68.05 19.11 64.49 19.72 61.04L20.19 61.32L36.13 70.52C36.53 70.75 36.98 70.87 37.43 70.87C37.89 70.87 38.34 70.75 38.73 70.52L58.21 59.29V67.06C58.21 67.1 58.2 67.14 58.18 67.18C58.16 67.21 58.13 67.24 58.1 67.27L41.97 76.57C34.8 80.7 25.64 78.25 21.5 71.08ZM17.3 36.39C19.07 33.34 21.87 31.01 25.19 29.81V48.74C25.18 49.19 25.3 49.65 25.53 50.04C25.75 50.44 26.08 50.77 26.48 50.99L45.86 62.17L39.13 66.07C39.09 66.09 39.05 66.1 39.01 66.1C38.97 66.1 38.93 66.09 38.89 66.07L22.79 56.78C15.64 52.63 13.18 43.48 17.3 36.31V36.39ZM72.62 49.24L53.18 37.95L59.9 34.07C59.93 34.05 59.97 34.04 60.02 34.04C60.06 34.04 60.1 34.05 60.13 34.07L76.24 43.38C78.7 44.8 80.7 46.89 82.02 49.41C83.34 51.92 83.91 54.77 83.68 57.6C83.44 60.43 82.4 63.14 80.69 65.4C78.97 67.67 76.64 69.4 73.98 70.39V51.47C73.97 51.01 73.83 50.56 73.6 50.17C73.36 49.79 73.02 49.46 72.62 49.24ZM79.33 39.17L78.85 38.88L62.94 29.61C62.54 29.38 62.09 29.25 61.63 29.25C61.17 29.25 60.72 29.38 60.32 29.61L40.86 40.84V33.06C40.86 33.02 40.87 32.98 40.88 32.95C40.9 32.91 40.92 32.88 40.96 32.86L57.06 23.57C59.53 22.15 62.35 21.46 65.19 21.58C68.04 21.7 70.79 22.63 73.13 24.26C75.46 25.89 77.28 28.15 78.38 30.78C79.48 33.41 79.81 36.3 79.33 39.1V39.17ZM37.19 52.95L30.46 49.07C30.42 49.05 30.39 49.02 30.37 48.99C30.35 48.96 30.33 48.92 30.33 48.88V30.32C30.33 27.47 31.15 24.68 32.68 22.28C34.21 19.88 36.39 17.96 38.97 16.76C41.54 15.55 44.41 15.1 47.24 15.46C50.06 15.83 52.72 16.99 54.91 18.81L54.44 19.07L38.51 28.27C38.12 28.5 37.79 28.83 37.56 29.23C37.33 29.63 37.21 30.08 37.2 30.54L37.19 52.95ZM40.85 45.06L49.52 40.06L58.21 45.06V55.06L49.55 60.06L40.86 55.06L40.85 45.06Z</Geometry>
+
+        <!-- Claude icon (Anthropic logo) -->
+        <Geometry x:Key="ClaudeIconPath">M25.71 63.22L41.44 54.39L41.7 53.62L41.44 53.2H40.67L38.04 53.04L29.05 52.79L21.26 52.47L13.71 52.06L11.81 51.66L10.03 49.31L10.21 48.14L11.81 47.07L14.1 47.27L19.16 47.61L26.75 48.14L32.25 48.46L40.41 49.31H41.7L41.88 48.79L41.44 48.46L41.1 48.14L33.24 42.82L24.74 37.19L20.29 33.95L17.88 32.31L16.67 30.77L16.14 27.41L18.33 25.01L21.26 25.21L22.01 25.41L24.99 27.7L31.34 32.62L39.64 38.73L40.85 39.74L41.34 39.4L41.4 39.15L40.85 38.24L36.34 30.09L31.52 21.79L29.38 18.35L28.81 16.28C28.61 15.43 28.47 14.73 28.47 13.85L30.96 10.48L32.33 10.03L35.65 10.48L37.05 11.69L39.11 16.41L42.45 23.83L47.63 33.93L49.15 36.93L49.96 39.7L50.26 40.55H50.79V40.06L51.21 34.38L52 27.39L52.77 18.41L53.04 15.88L54.29 12.84L56.78 11.2L58.72 12.14L60.32 14.42L60.1 15.9L59.15 22.07L57.29 31.75L56.07 38.22H56.78L57.59 37.41L60.87 33.06L66.37 26.18L68.8 23.45L71.63 20.43L73.46 19H76.9L79.43 22.76L78.29 26.65L74.75 31.14L71.82 34.94L67.61 40.61L64.98 45.14L65.22 45.51L65.85 45.45L75.36 43.42L80.5 42.49L86.63 41.44L89.4 42.73L89.71 44.05L88.61 46.74L82.06 48.36L74.37 49.9L62.91 52.61L62.77 52.71L62.93 52.91L68.09 53.4L70.3 53.52H75.7L85.76 54.27L88.39 56.01L89.97 58.14L89.71 59.75L85.66 61.82L80.19 60.52L67.45 57.49L63.07 56.4H62.47V56.76L66.11 60.32L72.79 66.35L81.15 74.12L81.57 76.05L80.5 77.56L79.36 77.4L72.02 71.88L69.19 69.39L62.77 63.98H62.35V64.55L63.82 66.72L71.63 78.45L72.04 82.06L71.47 83.23L69.45 83.94L67.22 83.53L62.65 77.12L57.93 69.89L54.13 63.42L53.66 63.68L51.42 87.87L50.36 89.1L47.94 90.03L45.91 88.49L44.84 86L45.91 81.09L47.21 74.67L48.26 69.57L49.21 63.24L49.78 61.13L49.74 60.99L49.27 61.05L44.5 67.61L37.23 77.42L31.48 83.57L30.11 84.12L27.72 82.89L27.94 80.68L29.28 78.72L37.23 68.6L42.03 62.32L45.12 58.7L45.1 58.18H44.92L23.79 71.9L20.03 72.38L18.41 70.87L18.61 68.38L19.38 67.57L25.73 63.2L25.71 63.22Z</Geometry>
+
+        <!-- Progress bar style -->
+        <Style x:Key="UsageProgressBar" TargetType="ProgressBar">
+            <Setter Property="Height" Value="8" />
+            <Setter Property="Background" Value="{StaticResource TrackBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <Border x:Name="PART_Track" CornerRadius="4" Background="{TemplateBinding Background}" />
+                            <Border x:Name="PART_Indicator" CornerRadius="4" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}">
+                                <Border.Width>
+                                    <MultiBinding Converter="{x:Static local:ProgressWidthConverter.Instance}">
+                                        <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Value" />
+                                        <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Maximum" />
+                                        <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="ActualWidth" />
+                                    </MultiBinding>
+                                </Border.Width>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="16" BorderBrush="#50A0A0C0" BorderThickness="1">
+        <Border.Background>
+            <SolidColorBrush Color="{StaticResource BgColor}" Opacity="0.92" />
+        </Border.Background>
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Tab bar with icons -->
+            <Grid Grid.Row="0" Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Codex Tab -->
+                <RadioButton Grid.Column="0" GroupName="ProviderTabs"
+                             IsChecked="{Binding SelectedTabIndex, Converter={x:Static local:IndexToBoolConverter.Instance}, ConverterParameter=0}"
+                             Cursor="Hand" Margin="0,0,6,0">
+                    <RadioButton.Template>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border x:Name="TabBorder" Background="Transparent" CornerRadius="10" Padding="12,8">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <Path x:Name="TabIcon" Data="{StaticResource CodexIconPath}"
+                                          Width="20" Height="20" Stretch="Uniform"
+                                          Fill="{StaticResource CodexAccent}" HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="TabText" Text="Codex" FontSize="12" FontWeight="Medium"
+                                               HorizontalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,6,0,0" />
+                                    <Border x:Name="TabIndicator" Height="3" Width="20" CornerRadius="1.5"
+                                            Background="{StaticResource CodexAccent}" Margin="0,6,0,0" Opacity="0" />
+                                </StackPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="TabText" Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                                    <Setter TargetName="TabIndicator" Property="Opacity" Value="1" />
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="TabBorder" Property="Background" Value="#25A0A0C0" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </RadioButton.Template>
+                </RadioButton>
+
+                <!-- Claude Tab -->
+                <RadioButton Grid.Column="1" GroupName="ProviderTabs"
+                             IsChecked="{Binding SelectedTabIndex, Converter={x:Static local:IndexToBoolConverter.Instance}, ConverterParameter=1}"
+                             Cursor="Hand" Margin="6,0,0,0">
+                    <RadioButton.Template>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border x:Name="TabBorder" Background="Transparent" CornerRadius="10" Padding="12,8">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <Path x:Name="TabIcon" Data="{StaticResource ClaudeIconPath}"
+                                          Width="20" Height="20" Stretch="Uniform"
+                                          Fill="{StaticResource ClaudeAccent}" HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="TabText" Text="Claude" FontSize="12" FontWeight="Medium"
+                                               HorizontalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,6,0,0" />
+                                    <Border x:Name="TabIndicator" Height="3" Width="20" CornerRadius="1.5"
+                                            Background="{StaticResource ClaudeAccent}" Margin="0,6,0,0" Opacity="0" />
+                                </StackPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="TabText" Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                                    <Setter TargetName="TabIndicator" Property="Opacity" Value="1" />
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="TabBorder" Property="Background" Value="#25A0A0C0" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </RadioButton.Template>
+                </RadioButton>
+            </Grid>
+
+            <!-- Divider -->
+            <Border Grid.Row="1" Height="1" Background="{StaticResource DividerBrush}" Margin="0,0,0,16" />
+
+            <!-- Content area -->
+            <StackPanel Grid.Row="2" DataContext="{Binding SelectedProvider}">
+
+                <!-- Provider header -->
+                <DockPanel Margin="0,0,0,14">
+                    <StackPanel DockPanel.Dock="Left">
+                        <TextBlock Text="{Binding DisplayName}" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                        <TextBlock Text="{Binding StatusSummary}" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="0,3,0,0" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding PlanText}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Medium"
+                               DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                </DockPanel>
+
+                <!-- Divider -->
+                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,0,0,14" />
+
+                <!-- Session section -->
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock Text="Session" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8" />
+                    <ProgressBar Style="{StaticResource UsageProgressBar}" Value="{Binding SessionProgress}" Maximum="1" Foreground="{StaticResource SessionAccent}" />
+                    <DockPanel Margin="0,8,0,0">
+                        <TextBlock Text="{Binding SessionUsageLabel}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" DockPanel.Dock="Left" />
+                        <TextBlock Text="{Binding SessionResetText}" FontSize="12" Foreground="{StaticResource TextMutedBrush}" DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                    </DockPanel>
+                </StackPanel>
+
+                <!-- Weekly section -->
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock Text="Weekly" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8" />
+                    <ProgressBar Style="{StaticResource UsageProgressBar}" Value="{Binding WeekProgress}" Maximum="1" Foreground="{StaticResource WeeklyAccent}" />
+                    <DockPanel Margin="0,8,0,0">
+                        <TextBlock Text="{Binding WeekUsageLabel}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" DockPanel.Dock="Left" />
+                        <TextBlock Text="{Binding WeekResetText}" FontSize="12" Foreground="{StaticResource TextMutedBrush}" DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding WeekPaceText}" FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="0,4,0,0"
+                               Visibility="{Binding WeekPaceText, Converter={x:Static local:StringToVisibilityConverter.Instance}}" />
+                </StackPanel>
+
+                <!-- Divider -->
+                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,4,0,16" />
+
+                <!-- Cost section -->
+                <StackPanel>
+                    <TextBlock Text="Cost" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,10" />
+                    <DockPanel Margin="0,0,0,6">
+                        <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" DockPanel.Dock="Left">
+                            <Run Text="Today:" />
+                        </TextBlock>
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                            <TextBlock Text="{Binding TodayCostText}" FontSize="12" Foreground="{StaticResource CostTodayAccent}" FontWeight="SemiBold" />
+                            <TextBlock Text=" · " FontSize="12" Foreground="{StaticResource TextMutedBrush}" />
+                            <TextBlock Text="{Binding TodayTokensText}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" />
+                        </StackPanel>
+                    </DockPanel>
+                    <DockPanel>
+                        <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" DockPanel.Dock="Left">
+                            <Run Text="Last 30 days:" />
+                        </TextBlock>
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                            <TextBlock Text="{Binding MonthCostText}" FontSize="12" Foreground="{StaticResource CostMonthAccent}" FontWeight="SemiBold" />
+                            <TextBlock Text=" · " FontSize="12" Foreground="{StaticResource TextMutedBrush}" />
+                            <TextBlock Text="{Binding MonthTokensText}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" />
+                        </StackPanel>
+                    </DockPanel>
+                </StackPanel>
+
+            </StackPanel>
+
+            <!-- Footer note -->
+            <StackPanel Grid.Row="3" Margin="0,20,0,0">
+                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,0,0,14" />
+                <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextFaintBrush}" LineHeight="18">
+                    <Run FontWeight="SemiBold" Foreground="{StaticResource CodexAccent}">Codex</Run><Run> - OpenAI's AI coding assistant</Run>
+                    <LineBreak />
+                    <Run FontWeight="SemiBold" Foreground="{StaticResource ClaudeAccent}">Claude</Run><Run> - Anthropic's Claude Code CLI</Run>
+                </TextBlock>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

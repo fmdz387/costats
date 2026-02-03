@@ -1,0 +1,119 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using costats.Application.Pulse;
+using costats.Application.Settings;
+using Microsoft.Win32;
+
+namespace costats.App.ViewModels;
+
+public sealed partial class SettingsViewModel : ObservableObject
+{
+    private readonly ISettingsStore _settingsStore;
+    private readonly AppSettings _settings;
+    private readonly IPulseOrchestrator _pulseOrchestrator;
+    private const string StartupRegistryKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+    private const string AppName = "costats";
+
+    public SettingsViewModel(ISettingsStore settingsStore, AppSettings settings, IPulseOrchestrator pulseOrchestrator)
+    {
+        _settingsStore = settingsStore;
+        _settings = settings;
+        _pulseOrchestrator = pulseOrchestrator;
+
+        refreshMinutes = settings.RefreshMinutes;
+        startAtLogin = GetStartupRegistryValue();
+    }
+
+    [ObservableProperty]
+    private int refreshMinutes;
+
+    [ObservableProperty]
+    private bool startAtLogin;
+
+    public static IReadOnlyList<RefreshOption> RefreshOptions { get; } = new[]
+    {
+        new RefreshOption(1, "1 minute"),
+        new RefreshOption(2, "2 minutes"),
+        new RefreshOption(3, "3 minutes"),
+        new RefreshOption(5, "5 minutes"),
+        new RefreshOption(10, "10 minutes"),
+        new RefreshOption(15, "15 minutes"),
+    };
+
+    public RefreshOption SelectedRefreshOption
+    {
+        get => RefreshOptions.FirstOrDefault(o => o.Minutes == RefreshMinutes) ?? RefreshOptions[3];
+        set
+        {
+            if (value is not null && RefreshMinutes != value.Minutes)
+            {
+                RefreshMinutes = value.Minutes;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    partial void OnRefreshMinutesChanged(int value)
+    {
+        _settings.RefreshMinutes = value;
+        _pulseOrchestrator.UpdateRefreshInterval(TimeSpan.FromMinutes(value));
+        _ = SaveSettingsAsync();
+        OnPropertyChanged(nameof(SelectedRefreshOption));
+    }
+
+    partial void OnStartAtLoginChanged(bool value)
+    {
+        _settings.StartAtLogin = value;
+        SetStartupRegistryValue(value);
+        _ = SaveSettingsAsync();
+    }
+
+    private async Task SaveSettingsAsync()
+    {
+        await _settingsStore.SaveAsync(_settings, CancellationToken.None);
+    }
+
+    private static bool GetStartupRegistryValue()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryKey, false);
+            return key?.GetValue(AppName) is not null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void SetStartupRegistryValue(bool enable)
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryKey, true);
+            if (key is null) return;
+
+            if (enable)
+            {
+                var exePath = Environment.ProcessPath;
+                if (!string.IsNullOrEmpty(exePath))
+                {
+                    key.SetValue(AppName, $"\"{exePath}\"");
+                }
+            }
+            else
+            {
+                key.DeleteValue(AppName, false);
+            }
+        }
+        catch
+        {
+            // Silently ignore registry errors
+        }
+    }
+}
+
+public sealed record RefreshOption(int Minutes, string Label)
+{
+    public override string ToString() => Label;
+}

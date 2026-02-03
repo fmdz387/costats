@@ -1,0 +1,153 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+  PROJECT_PATH: src/costats.App/costats.App.csproj
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        platform: [win-x64, win-arm64]
+        include:
+          - platform: win-x64
+            artifact_name: costats-windows-x64
+          - platform: win-arm64
+            artifact_name: costats-windows-arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Get version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event.inputs.version }}" -ne "") {
+            $version = "${{ github.event.inputs.version }}"
+          } else {
+            $version = "${{ github.ref_name }}".TrimStart('v')
+          }
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "Version: $version"
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Publish
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} `
+            --configuration Release `
+            --runtime ${{ matrix.platform }} `
+            --self-contained true `
+            --output ./publish/${{ matrix.platform }} `
+            -p:PublishSingleFile=true `
+            -p:PublishReadyToRun=false `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=embedded `
+            -p:Version=${{ steps.version.outputs.VERSION }}
+
+      - name: Create archive
+        shell: pwsh
+        run: |
+          Compress-Archive -Path ./publish/${{ matrix.platform }}/* -DestinationPath ./${{ matrix.artifact_name }}.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ./${{ matrix.artifact_name }}.zip
+          retention-days: 30
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: List artifacts
+        run: find ./artifacts -type f -name "*.zip"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          echo "## What's Changed" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git log --pretty=format:"- %s (%h)" $(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")..HEAD >> CHANGELOG.md 2>/dev/null || echo "- Initial release" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "## Downloads" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "| Platform | Download |" >> CHANGELOG.md
+          echo "|----------|----------|" >> CHANGELOG.md
+          echo "| Windows x64 | \`costats-windows-x64.zip\` |" >> CHANGELOG.md
+          echo "| Windows ARM64 | \`costats-windows-arm64.zip\` |" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "## Installation" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "1. Download the appropriate ZIP for your system" >> CHANGELOG.md
+          echo "2. Extract to a folder of your choice" >> CHANGELOG.md
+          echo "3. Run \`costats.App.exe\`" >> CHANGELOG.md
+          echo "4. (Optional) Enable 'Start at login' in Settings" >> CHANGELOG.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: costats v${{ steps.version.outputs.VERSION }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
+          files: |
+            ./artifacts/costats-windows-x64/costats-windows-x64.zip
+            ./artifacts/costats-windows-arm64/costats-windows-arm64.zip
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

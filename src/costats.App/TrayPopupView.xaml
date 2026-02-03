@@ -1,0 +1,34 @@
+<UserControl x:Class="costats.App.TrayPopupView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="260"
+             Width="320">
+    <Border CornerRadius="12" Background="#FDFDFD" Padding="12">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="costats" FontSize="16" FontWeight="SemiBold" Foreground="#222222" />
+
+            <ItemsControl Grid.Row="1" Margin="0,12,0,12" ItemsSource="{Binding Providers}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="0,0,0,8">
+                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" Foreground="#222222" />
+                            <TextBlock Text="{Binding StatusSummary}" Foreground="#666666" FontSize="12" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Session: " Foreground="#666666" FontSize="11" />
+                                <TextBlock Text="{Binding SessionText}" Foreground="#222222" FontSize="11" />
+                            </StackPanel>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Grid.Row="2" Text="{Binding LastUpdated}" Foreground="#888888" FontSize="11" HorizontalAlignment="Right" />
+        </Grid>
+    </Border>
+</UserControl>
