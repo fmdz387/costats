@@ -12,7 +12,7 @@ A lightweight Windows tray app that shows live status for AI coding providers li
 
 **One-step PowerShell (technical)**
 ```powershell
-iwr -useb https://raw.githubusercontent.com/fmdz387/costats/main/scripts/install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/fmdz387/costats/master/scripts/install.ps1 | iex
 ```
 Downloads the latest release, installs per-user and creates a Start Menu shortcut.
 
