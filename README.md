@@ -62,3 +62,6 @@ dotnet build .\costats.sln -c Release
 # Publish portable single-file binaries (x64 + arm64)
 .\scripts\publish.ps1
 ```
+
+## Linux/MacOS
+- [CodexBar](https://github.com/steipete/CodexBar) is an original MacOS/Linux app for stats.
