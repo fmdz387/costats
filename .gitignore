@@ -37,3 +37,9 @@ Thumbs.db
 Desktop.ini
 ehthumbs.db
 [Dd]esktop.ini
+
+# AI
+CLAUDE.md
+AGENTS.md
+.claude/
+.codex/

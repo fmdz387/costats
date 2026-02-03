@@ -67,16 +67,21 @@ public sealed class PulseOrchestrator : BackgroundService, IPulseOrchestrator
                 .GroupBy(source => source.Profile.ProviderId)
                 .ToDictionary(group => group.Key, group => (IReadOnlyList<ISignalSource>)group.ToList());
 
-            var providerReads = new Dictionary<string, ProviderReading>(StringComparer.OrdinalIgnoreCase);
             var errors = new List<string>();
 
-            foreach (var (providerId, providerSources) in byProvider)
+            // Fetch all providers in parallel for performance
+            var fetchTasks = byProvider.Select(async kvp =>
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
+                var (providerId, providerSources) = kvp;
                 var reading = await _selector.SelectAsync(providerId, providerSources, cancellationToken);
-                providerReads[providerId] = reading;
-            }
+                return (providerId, reading);
+            });
+
+            var results = await Task.WhenAll(fetchTasks);
+            var providerReads = results.ToDictionary(
+                r => r.providerId,
+                r => r.reading,
+                StringComparer.OrdinalIgnoreCase);
 
             var state = new PulseState(providerReads, _clock.UtcNow, errors, false, trigger);
             _lastState = state;

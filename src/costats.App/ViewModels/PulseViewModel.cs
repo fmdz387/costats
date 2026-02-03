@@ -42,7 +42,7 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
     private int selectedTabIndex;
 
     [ObservableProperty]
-    private bool isRefreshing;
+    private bool isRefreshing = true; // Start true to show spinner on initial load
 
     /// <summary>
     /// Returns the currently selected provider based on tab index.
@@ -81,6 +81,8 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        // Show loading indicator immediately for responsive UX
+        IsRefreshing = true;
         try
         {
             await _orchestrator.RefreshOnceAsync(RefreshTrigger.Manual, CancellationToken.None);
@@ -89,6 +91,11 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
         {
             // Log but don't crash - refresh failures should not take down the app
             System.Diagnostics.Debug.WriteLine($"Refresh failed: {ex.Message}");
+        }
+        finally
+        {
+            // Ensure loading indicator is hidden even if orchestrator doesn't publish
+            IsRefreshing = false;
         }
     }
 

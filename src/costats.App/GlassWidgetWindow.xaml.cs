@@ -22,8 +22,8 @@ namespace costats.App
 
         private void OnSourceInitialized(object? sender, EventArgs e)
         {
-            var hwnd = new WindowInteropHelper(this).Handle;
-            _backdropService.ApplyBackdrop(hwnd);
+            // Skip backdrop - we use AllowsTransparency with custom Border for rounded corners
+            // Applying DWM backdrop creates a conflicting layer with different corner radius
         }
 
         private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)

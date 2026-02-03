@@ -17,23 +17,29 @@ public sealed class SourceSelector : ISourceSelector
         IReadOnlyList<ISignalSource> sources,
         CancellationToken cancellationToken)
     {
-        ProviderReading? best = null;
-
-        foreach (var source in sources)
+        // Fetch all sources in parallel for performance
+        var readTasks = sources.Select(async source =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             try
             {
-                var reading = await source.ReadAsync(cancellationToken);
-                if (best is null || IsBetter(reading, best))
-                {
-                    best = reading;
-                }
+                return await source.ReadAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Source {Source} failed for {ProviderId}", source.GetType().Name, providerId);
+                return null;
+            }
+        });
+
+        var readings = await Task.WhenAll(readTasks);
+
+        // Select the best reading from all successful results
+        ProviderReading? best = null;
+        foreach (var reading in readings)
+        {
+            if (reading is not null && (best is null || IsBetter(reading, best)))
+            {
+                best = reading;
             }
         }
 

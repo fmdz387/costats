@@ -21,11 +21,16 @@ public sealed class ClaudeLogSource : ISignalSource
     {
         var now = DateTimeOffset.UtcNow;
 
-        // Try OAuth API first for accurate percentages
-        var oauthResult = await _oauthFetcher.FetchAsync(cancellationToken);
+        // Run OAuth, log scanning, and expense analysis in parallel for performance
+        var oauthTask = _oauthFetcher.FetchAsync(cancellationToken);
+        var logTask = _scanner.ScanClaudeAsync(cancellationToken);
+        var expenseTask = SafeAnalyzeExpenseAsync(cancellationToken);
 
-        // Also scan logs for token counts (for cost estimation)
-        var logResult = await _scanner.ScanClaudeAsync(cancellationToken);
+        await Task.WhenAll(oauthTask, logTask, expenseTask);
+
+        var oauthResult = oauthTask.Result;
+        var logResult = logTask.Result;
+        var consumption = expenseTask.Result;
 
         if (oauthResult is null && logResult.SessionTokens == 0 && logResult.WeekTokens == 0)
         {
@@ -84,17 +89,6 @@ public sealed class ClaudeLogSource : ISignalSource
             spendingBucket = MonetaryBucket.ForOverageSpend(
                 (decimal)oauthResult.OverageSpentUsd.Value,
                 (decimal)oauthResult.OverageCeilingUsd.Value);
-        }
-
-        // Analyze token consumption and costs (non-fatal if it fails)
-        ConsumptionDigest? consumption = null;
-        try
-        {
-            consumption = await _expenseAnalyzer.AnalyzeClaudeAsync(cancellationToken);
-        }
-        catch
-        {
-            // Cost analysis failure should not break usage display
         }
 
         var usage = new UsagePulse(
@@ -165,4 +159,16 @@ public sealed class ClaudeLogSource : ISignalSource
         return new DateTimeOffset(nextMonday, TimeSpan.Zero);
     }
 
+    private async Task<ConsumptionDigest?> SafeAnalyzeExpenseAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _expenseAnalyzer.AnalyzeClaudeAsync(cancellationToken);
+        }
+        catch
+        {
+            // Cost analysis failure should not break usage display
+            return null;
+        }
+    }
 }
