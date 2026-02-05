@@ -51,6 +51,11 @@ jobs:
           } else {
             $version = "${{ github.ref_name }}".TrimStart('v')
           }
+
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Version must be major.minor.patch (e.g. 1.2.3). Received: $version"
+          }
+
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
           echo "Version: $version"
 
@@ -69,6 +74,7 @@ jobs:
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:EnableCompressionInSingleFile=true `
             -p:DebugType=embedded `
+            -p:VersionPrefix=${{ steps.version.outputs.VERSION }} `
             -p:Version=${{ steps.version.outputs.VERSION }}
 
       - name: Create archive
@@ -76,14 +82,20 @@ jobs:
         run: |
           $zipName = "${{ matrix.artifact_name }}-v${{ steps.version.outputs.VERSION }}.zip"
           Compress-Archive -Path ./publish/${{ matrix.platform }}/* -DestinationPath ./$zipName
+          $hash = (Get-FileHash -Path ./$zipName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumName = "$zipName.sha256"
+          Set-Content -Path ./$checksumName -Value "$hash  $zipName" -Encoding Ascii
           echo "ZIP_NAME=$zipName" >> $env:GITHUB_OUTPUT
+          echo "CHECKSUM_NAME=$checksumName" >> $env:GITHUB_OUTPUT
         id: archive
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: ./${{ steps.archive.outputs.ZIP_NAME }}
+          path: |
+            ./${{ steps.archive.outputs.ZIP_NAME }}
+            ./${{ steps.archive.outputs.CHECKSUM_NAME }}
           retention-days: 30
 
   release:
@@ -107,6 +119,10 @@ jobs:
           else
             VERSION="${GITHUB_REF_NAME#v}"
           fi
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must be major.minor.patch (e.g. 1.2.3). Received: $VERSION" >&2
+            exit 1
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
@@ -116,7 +132,7 @@ jobs:
           path: ./artifacts
 
       - name: List artifacts
-        run: find ./artifacts -type f -name "*.zip"
+        run: find ./artifacts -type f \( -name "*.zip" -o -name "*.sha256" \)
 
       - name: Generate changelog
         id: changelog
@@ -150,7 +166,9 @@ jobs:
           prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
           files: |
             ./artifacts/costats-win-x64/*.zip
+            ./artifacts/costats-win-x64/*.sha256
             ./artifacts/costats-win-arm64/*.zip
+            ./artifacts/costats-win-arm64/*.sha256
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

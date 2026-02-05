@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using costats.Core.Pulse;
 
@@ -9,88 +10,117 @@ namespace costats.Infrastructure.Expense;
 public static class LogDigestor
 {
     private const int MaxLineLength = 512 * 1024;
+    private const int FileReadBufferSize = 16 * 1024;
+    private const int MaxDedupeKeyCount = 250_000;
 
     /// <summary>
     /// Digests Claude Code log files and produces consumption slices.
     /// </summary>
-    public static async Task<IReadOnlyList<ConsumptionSlice>> DigestClaudeLogsAsync(
+    public static Task<IReadOnlyList<ConsumptionSlice>> DigestClaudeLogsAsync(
         DateOnly since,
         DateOnly until,
         CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.Run(() => DigestClaudeLogsCore(since, until, cancellationToken), cancellationToken);
+    }
+
+    private static IReadOnlyList<ConsumptionSlice> DigestClaudeLogsCore(
+        DateOnly since,
+        DateOnly until,
+        CancellationToken cancellationToken)
     {
         var logDir = GetClaudeLogDirectory();
         if (!Directory.Exists(logDir))
             return [];
 
-        var slices = new List<ConsumptionSlice>();
-        var dedupeSet = new HashSet<string>();
+        var aggregates = new Dictionary<DateOnly, Dictionary<string, SliceAccumulator>>();
+        var dedupeSet = new HashSet<MessageRequestKey>();
+        var cutoff = since.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc) - TimeSpan.FromDays(1);
 
         // Scan all project directories recursively (includes subagents subdirectories)
         foreach (var projectDir in Directory.EnumerateDirectories(logDir))
         {
-            await ScanClaudeDirectoryRecursiveAsync(projectDir, since, until, slices, dedupeSet, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            ScanClaudeDirectoryRecursive(projectDir, since, until, cutoff, aggregates, dedupeSet, cancellationToken);
         }
 
-        return AggregateByDayAndModel(slices);
+        return BuildAggregatedSlices(aggregates);
     }
 
-    private static async Task ScanClaudeDirectoryRecursiveAsync(
+    private static void ScanClaudeDirectoryRecursive(
         string directory,
         DateOnly since,
         DateOnly until,
-        List<ConsumptionSlice> slices,
-        HashSet<string> dedupeSet,
+        DateTime cutoff,
+        Dictionary<DateOnly, Dictionary<string, SliceAccumulator>> aggregates,
+        HashSet<MessageRequestKey> dedupeSet,
         CancellationToken cancellationToken)
     {
         // Scan jsonl files in current directory
         foreach (var file in Directory.EnumerateFiles(directory, "*.jsonl"))
         {
-            await DigestClaudeFileAsync(file, since, until, slices, dedupeSet, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (File.GetLastWriteTimeUtc(file) < cutoff)
+                continue;
+
+            DigestClaudeFile(file, since, until, aggregates, dedupeSet, cancellationToken);
         }
 
         // Recurse into subdirectories (e.g., subagents/)
         foreach (var subDir in Directory.EnumerateDirectories(directory))
         {
-            await ScanClaudeDirectoryRecursiveAsync(subDir, since, until, slices, dedupeSet, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            ScanClaudeDirectoryRecursive(subDir, since, until, cutoff, aggregates, dedupeSet, cancellationToken);
         }
     }
 
     /// <summary>
     /// Digests Codex log files and produces consumption slices.
     /// </summary>
-    public static async Task<IReadOnlyList<ConsumptionSlice>> DigestCodexLogsAsync(
+    public static Task<IReadOnlyList<ConsumptionSlice>> DigestCodexLogsAsync(
         DateOnly since,
         DateOnly until,
         CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.Run(() => DigestCodexLogsCore(since, until, cancellationToken), cancellationToken);
+    }
+
+    private static IReadOnlyList<ConsumptionSlice> DigestCodexLogsCore(
+        DateOnly since,
+        DateOnly until,
+        CancellationToken cancellationToken)
     {
         var logDir = GetCodexLogDirectory();
         if (!Directory.Exists(logDir))
             return [];
 
-        var slices = new List<ConsumptionSlice>();
+        var aggregates = new Dictionary<DateOnly, Dictionary<string, SliceAccumulator>>();
 
         foreach (var file in EnumerateCodexSessionFiles(logDir, since, until))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             // Each file has its own cumulative totals - don't share across files
-            await DigestCodexFileAsync(file, since, until, slices, cancellationToken);
+            DigestCodexFile(file, since, until, aggregates, cancellationToken);
         }
 
-        return AggregateByDayAndModel(slices);
+        return BuildAggregatedSlices(aggregates);
     }
 
-    private static async Task DigestClaudeFileAsync(
+    private static void DigestClaudeFile(
         string filePath,
         DateOnly since,
         DateOnly until,
-        List<ConsumptionSlice> slices,
-        HashSet<string> dedupeSet,
+        Dictionary<DateOnly, Dictionary<string, SliceAccumulator>> aggregates,
+        HashSet<MessageRequestKey> dedupeSet,
         CancellationToken cancellationToken)
     {
         try
         {
-            await foreach (var line in ReadLinesAsync(filePath, cancellationToken))
+            foreach (var line in ReadLines(filePath, cancellationToken))
             {
-                if (string.IsNullOrWhiteSpace(line) || line.Length > MaxLineLength)
+                if (string.IsNullOrWhiteSpace(line))
                     continue;
 
                 // Quick pre-filter before parsing JSON
@@ -126,8 +156,7 @@ public static class LogDigestor
                     var requestId = TryGetString(root, "requestId", out var rid) ? rid : null;
                     if (messageId is not null && requestId is not null)
                     {
-                        var dedupeKey = $"{messageId}:{requestId}";
-                        if (!dedupeSet.Add(dedupeKey))
+                        if (!TryAddDedupeKey(dedupeSet, new MessageRequestKey(messageId, requestId)))
                             continue;
                     }
 
@@ -138,13 +167,7 @@ public static class LogDigestor
                     var rate = TariffRegistry.FindClaudeRate(model);
                     var cost = rate.ComputeCost(ledger);
 
-                    slices.Add(new ConsumptionSlice
-                    {
-                        Period = entryDate.Value,
-                        ModelIdentifier = model,
-                        Tokens = ledger,
-                        ComputedCostUsd = cost
-                    });
+                    AddAggregate(aggregates, entryDate.Value, model, ledger, cost);
                 }
                 catch (JsonException)
                 {
@@ -156,13 +179,14 @@ public static class LogDigestor
         {
             // File access error, skip
         }
+
     }
 
-    private static async Task DigestCodexFileAsync(
+    private static void DigestCodexFile(
         string filePath,
         DateOnly since,
         DateOnly until,
-        List<ConsumptionSlice> slices,
+        Dictionary<DateOnly, Dictionary<string, SliceAccumulator>> aggregates,
         CancellationToken cancellationToken)
     {
         string? currentModel = null;
@@ -171,9 +195,9 @@ public static class LogDigestor
 
         try
         {
-            await foreach (var line in ReadLinesAsync(filePath, cancellationToken))
+            foreach (var line in ReadLines(filePath, cancellationToken))
             {
-                if (string.IsNullOrWhiteSpace(line) || line.Length > MaxLineLength)
+                if (string.IsNullOrWhiteSpace(line))
                     continue;
 
                 // Quick pre-filter
@@ -283,13 +307,7 @@ public static class LogDigestor
                     var rate = TariffRegistry.FindCodexRate(model);
                     var cost = rate.ComputeCost(ledger);
 
-                    slices.Add(new ConsumptionSlice
-                    {
-                        Period = entryDate.Value,
-                        ModelIdentifier = model,
-                        Tokens = ledger,
-                        ComputedCostUsd = cost
-                    });
+                    AddAggregate(aggregates, entryDate.Value, model, ledger, cost);
                 }
                 catch (JsonException)
                 {
@@ -319,27 +337,99 @@ public static class LogDigestor
         };
     }
 
-    private static IReadOnlyList<ConsumptionSlice> AggregateByDayAndModel(List<ConsumptionSlice> rawSlices)
+    private static IReadOnlyList<ConsumptionSlice> BuildAggregatedSlices(
+        Dictionary<DateOnly, Dictionary<string, SliceAccumulator>> aggregates)
     {
-        var grouped = rawSlices
-            .GroupBy(s => (s.Period, s.ModelIdentifier))
-            .Select(g =>
-            {
-                var combined = g.Aggregate(TokenLedger.Empty, (acc, s) => acc.Combine(s.Tokens));
-                var totalCost = g.Sum(s => s.ComputedCostUsd);
-                return new ConsumptionSlice
+        var grouped = aggregates
+            .SelectMany(day =>
+                day.Value.Select(model =>
                 {
-                    Period = g.Key.Period,
-                    ModelIdentifier = g.Key.ModelIdentifier,
-                    Tokens = combined,
-                    ComputedCostUsd = totalCost
-                };
-            })
+                    var accumulator = model.Value;
+                    return new ConsumptionSlice
+                    {
+                        Period = day.Key,
+                        ModelIdentifier = model.Key,
+                        Tokens = accumulator.ToTokenLedger(),
+                        ComputedCostUsd = accumulator.Cost
+                    };
+                }))
             .OrderByDescending(s => s.Period)
-            .ThenBy(s => s.ModelIdentifier)
+            .ThenBy(s => s.ModelIdentifier, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         return grouped;
+    }
+
+    private static void AddAggregate(
+        Dictionary<DateOnly, Dictionary<string, SliceAccumulator>> aggregates,
+        DateOnly period,
+        string modelIdentifier,
+        TokenLedger ledger,
+        decimal cost)
+    {
+        if (!aggregates.TryGetValue(period, out var byModel))
+        {
+            byModel = new Dictionary<string, SliceAccumulator>(StringComparer.OrdinalIgnoreCase);
+            aggregates[period] = byModel;
+        }
+
+        if (!byModel.TryGetValue(modelIdentifier, out var accumulator))
+        {
+            accumulator = new SliceAccumulator();
+        }
+
+        accumulator.StandardInput += ledger.StandardInput;
+        accumulator.CachedInput += ledger.CachedInput;
+        accumulator.CacheWriteInput += ledger.CacheWriteInput;
+        accumulator.GeneratedOutput += ledger.GeneratedOutput;
+        accumulator.Cost += cost;
+        byModel[modelIdentifier] = accumulator;
+    }
+
+    private static TokenLedger ToTokenLedger(SliceAccumulator accumulator)
+    {
+        return new TokenLedger
+        {
+            StandardInput = ClampToInt(accumulator.StandardInput),
+            CachedInput = ClampToInt(accumulator.CachedInput),
+            CacheWriteInput = ClampToInt(accumulator.CacheWriteInput),
+            GeneratedOutput = ClampToInt(accumulator.GeneratedOutput)
+        };
+    }
+
+    private static int ClampToInt(long value)
+    {
+        if (value > int.MaxValue)
+            return int.MaxValue;
+        if (value < int.MinValue)
+            return int.MinValue;
+        return (int)value;
+    }
+
+    private static IEnumerable<string> ReadLines(string filePath, CancellationToken cancellationToken)
+    {
+        using var stream = new FileStream(filePath, new FileStreamOptions
+        {
+            Mode = FileMode.Open,
+            Access = FileAccess.Read,
+            Share = FileShare.ReadWrite,
+            Options = FileOptions.SequentialScan,
+            BufferSize = FileReadBufferSize
+        });
+        using var reader = new StreamReader(stream);
+        var buffer = new StringBuilder();
+
+        string? line;
+        while ((line = ReadLineLimited(reader, buffer)) is not null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (line.Length == 0)
+            {
+                continue;
+            }
+
+            yield return line;
+        }
     }
 
     private static string GetClaudeLogDirectory()
@@ -429,19 +519,66 @@ public static class LogDigestor
         return 0;
     }
 
-    private static async IAsyncEnumerable<string> ReadLinesAsync(
-        string filePath,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    private static string? ReadLineLimited(StreamReader reader, StringBuilder buffer)
     {
-        using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using var reader = new StreamReader(stream);
+        buffer.Clear();
+        var overflowed = false;
+        int ch;
 
-        string? line;
-        while ((line = await reader.ReadLineAsync(cancellationToken)) is not null)
+        while ((ch = reader.Read()) != -1)
         {
-            if (cancellationToken.IsCancellationRequested)
-                yield break;
-            yield return line;
+            if (ch == '\r')
+            {
+                if (reader.Peek() == '\n')
+                    reader.Read();
+                return overflowed ? string.Empty : buffer.ToString();
+            }
+
+            if (ch == '\n')
+            {
+                return overflowed ? string.Empty : buffer.ToString();
+            }
+
+            if (!overflowed)
+            {
+                if (buffer.Length < MaxLineLength)
+                {
+                    buffer.Append((char)ch);
+                }
+                else
+                {
+                    overflowed = true;
+                }
+            }
         }
+
+        if (buffer.Length == 0 && !overflowed)
+            return null;
+
+        return overflowed ? string.Empty : buffer.ToString();
+    }
+
+    private static bool TryAddDedupeKey(HashSet<MessageRequestKey> dedupeSet, MessageRequestKey key)
+    {
+        // Bound memory for very large log histories.
+        if (dedupeSet.Count >= MaxDedupeKeyCount)
+        {
+            dedupeSet.Clear();
+        }
+
+        return dedupeSet.Add(key);
+    }
+
+    private readonly record struct MessageRequestKey(string MessageId, string RequestId);
+
+    private record struct SliceAccumulator
+    {
+        public long StandardInput { get; set; }
+        public long CachedInput { get; set; }
+        public long CacheWriteInput { get; set; }
+        public long GeneratedOutput { get; set; }
+        public decimal Cost { get; set; }
+
+        public TokenLedger ToTokenLedger() => LogDigestor.ToTokenLedger(this);
     }
 }

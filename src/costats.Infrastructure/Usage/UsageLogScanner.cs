@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 
 namespace costats.Infrastructure.Usage;
@@ -7,24 +8,28 @@ internal sealed class UsageLogScanner
 {
     private readonly TimeSpan _sessionWindow = TimeSpan.FromHours(5);
     private readonly TimeSpan _weeklyWindow = TimeSpan.FromDays(7);
+    private const int MaxLineLength = 512 * 1024; // 512 KB cap per line
+    private const int FileReadBufferSize = 16 * 1024;
+    private const int MaxDedupeKeyCount = 200_000;
 
     public Task<UsageLogResult> ScanCodexAsync(CancellationToken cancellationToken)
     {
-        return Task.Run(() => ScanCodex(cancellationToken), cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.Run(() => ScanCodexCore(cancellationToken), cancellationToken);
     }
 
     public Task<UsageLogResult> ScanClaudeAsync(CancellationToken cancellationToken)
     {
-        return Task.Run(() => ScanClaude(cancellationToken), cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.Run(() => ScanClaudeCore(cancellationToken), cancellationToken);
     }
 
-    private UsageLogResult ScanCodex(CancellationToken cancellationToken)
+    private UsageLogResult ScanCodexCore(CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
         var sessionCutoff = now - _sessionWindow;
         var weekCutoff = now - _weeklyWindow;
 
-        var totalsBySession = new Dictionary<string, TokenTotals>(StringComparer.OrdinalIgnoreCase);
         var sessionRecent = new Dictionary<string, DateTimeOffset>(StringComparer.OrdinalIgnoreCase);
         var lastTotalsBySession = new Dictionary<string, TokenTotals>(StringComparer.OrdinalIgnoreCase);
 
@@ -33,15 +38,23 @@ internal sealed class UsageLogScanner
         DateTimeOffset? latest = null;
         string? latestSessionId = null;
 
-        foreach (var file in EnumerateCodexFiles())
+        foreach (var file in EnumerateCodexFiles(weekCutoff))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var stream = new FileStream(file, new FileStreamOptions
+            {
+                Mode = FileMode.Open,
+                Access = FileAccess.Read,
+                Share = FileShare.ReadWrite,
+                Options = FileOptions.SequentialScan,
+                BufferSize = FileReadBufferSize
+            });
             using var reader = new StreamReader(stream);
             string? line;
             string? activeSessionId = null;
+            var lineBuffer = new StringBuilder();
 
-            while ((line = reader.ReadLine()) is not null)
+            while ((line = ReadLineLimited(reader, lineBuffer)) is not null)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (line.Length == 0)
@@ -124,9 +137,6 @@ internal sealed class UsageLogScanner
                     }
 
                     sessionRecent[sessionId] = timestamp;
-                    totalsBySession[sessionId] = totalsBySession.TryGetValue(sessionId, out var total)
-                        ? total.Add(tokens)
-                        : tokens;
                 }
                 catch (JsonException)
                 {
@@ -154,7 +164,7 @@ internal sealed class UsageLogScanner
             latestSessionId);
     }
 
-    private UsageLogResult ScanClaude(CancellationToken cancellationToken)
+    private UsageLogResult ScanClaudeCore(CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
         var sessionCutoff = now - _sessionWindow;
@@ -164,16 +174,24 @@ internal sealed class UsageLogScanner
         long weekTokens = 0;
         DateTimeOffset? latest = null;
         DateTimeOffset? sessionStart = null;
-        var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenKeys = new HashSet<MessageRequestKey>(MessageRequestKeyComparer.Instance);
 
-        foreach (var file in EnumerateClaudeFiles())
+        foreach (var file in EnumerateClaudeFiles(weekCutoff))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var stream = new FileStream(file, new FileStreamOptions
+            {
+                Mode = FileMode.Open,
+                Access = FileAccess.Read,
+                Share = FileShare.ReadWrite,
+                Options = FileOptions.SequentialScan,
+                BufferSize = FileReadBufferSize
+            });
             using var reader = new StreamReader(stream);
             string? line;
+            var lineBuffer = new StringBuilder();
 
-            while ((line = reader.ReadLine()) is not null)
+            while ((line = ReadLineLimited(reader, lineBuffer)) is not null)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (line.Length == 0 || !line.Contains("\"type\""))
@@ -221,8 +239,7 @@ internal sealed class UsageLogScanner
                         : null;
                     if (!string.IsNullOrWhiteSpace(messageId) && !string.IsNullOrWhiteSpace(requestId))
                     {
-                        var key = $"{messageId}:{requestId}";
-                        if (!seenKeys.Add(key))
+                        if (!TryAddDedupeKey(seenKeys, new MessageRequestKey(messageId, requestId)))
                         {
                             continue;
                         }
@@ -267,7 +284,7 @@ internal sealed class UsageLogScanner
         return new UsageLogResult(sessionTokens, weekTokens, latest, sessionStart, null);
     }
 
-    private static IEnumerable<string> EnumerateCodexFiles()
+    private static IEnumerable<string> EnumerateCodexFiles(DateTimeOffset oldestRelevant)
     {
         var roots = new List<string>();
         var env = Environment.GetEnvironmentVariable("CODEX_HOME");
@@ -297,12 +314,14 @@ internal sealed class UsageLogScanner
 
             foreach (var file in Directory.EnumerateFiles(root, "*.jsonl", SearchOption.AllDirectories))
             {
+                if (File.GetLastWriteTimeUtc(file) < (oldestRelevant - TimeSpan.FromDays(1)).UtcDateTime)
+                    continue;
                 yield return file;
             }
         }
     }
 
-    private static IEnumerable<string> EnumerateClaudeFiles()
+    private static IEnumerable<string> EnumerateClaudeFiles(DateTimeOffset oldestRelevant)
     {
         var roots = new List<string>();
         var env = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
@@ -342,9 +361,51 @@ internal sealed class UsageLogScanner
 
             foreach (var file in Directory.EnumerateFiles(root, "*.jsonl", SearchOption.AllDirectories))
             {
+                if (File.GetLastWriteTimeUtc(file) < (oldestRelevant - TimeSpan.FromDays(1)).UtcDateTime)
+                    continue;
                 yield return file;
             }
         }
+    }
+
+    private static string? ReadLineLimited(StreamReader reader, StringBuilder buffer)
+    {
+        buffer.Clear();
+        bool overflowed = false;
+        int ch;
+
+        while ((ch = reader.Read()) != -1)
+        {
+            if (ch == '\r')
+            {
+                if (reader.Peek() == '\n')
+                    reader.Read();
+                return overflowed ? string.Empty : buffer.ToString();
+            }
+
+            if (ch == '\n')
+            {
+                return overflowed ? string.Empty : buffer.ToString();
+            }
+
+            if (!overflowed)
+            {
+                if (buffer.Length < MaxLineLength)
+                {
+                    buffer.Append((char)ch);
+                }
+                else
+                {
+                    overflowed = true;
+                }
+            }
+        }
+
+        // EOF reached
+        if (buffer.Length == 0 && !overflowed)
+            return null;
+
+        return overflowed ? string.Empty : buffer.ToString();
     }
 
     private static TokenTotals ExtractCodexTokens(
@@ -476,6 +537,37 @@ internal sealed class UsageLogScanner
         public TokenTotals Add(TokenTotals other)
         {
             return new TokenTotals(Input + other.Input, Cached + other.Cached, Output + other.Output);
+        }
+    }
+
+    private readonly record struct MessageRequestKey(string MessageId, string RequestId);
+
+    private static bool TryAddDedupeKey(HashSet<MessageRequestKey> dedupeSet, MessageRequestKey key)
+    {
+        // Bound memory for very large log histories.
+        if (dedupeSet.Count >= MaxDedupeKeyCount)
+        {
+            dedupeSet.Clear();
+        }
+
+        return dedupeSet.Add(key);
+    }
+
+    private sealed class MessageRequestKeyComparer : IEqualityComparer<MessageRequestKey>
+    {
+        public static MessageRequestKeyComparer Instance { get; } = new();
+
+        public bool Equals(MessageRequestKey x, MessageRequestKey y)
+        {
+            return string.Equals(x.MessageId, y.MessageId, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(x.RequestId, y.RequestId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public int GetHashCode(MessageRequestKey obj)
+        {
+            return HashCode.Combine(
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.MessageId),
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.RequestId));
         }
     }
 }

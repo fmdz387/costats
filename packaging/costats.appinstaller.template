@@ -8,6 +8,9 @@
                ProcessorArchitecture="{{ARCH}}"
                Uri="{{MSIX_URI}}" />
   <UpdateSettings>
-    <OnLaunch HoursBetweenUpdateChecks="6" />
+    <OnLaunch HoursBetweenUpdateChecks="6"
+              ShowPrompt="true"
+              UpdateBlocksActivation="false" />
+    <AutomaticBackgroundTask />
   </UpdateSettings>
 </AppInstaller>

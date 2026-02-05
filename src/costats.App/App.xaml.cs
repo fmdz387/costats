@@ -1,5 +1,6 @@
 using System.Windows;
 using costats.App.Services;
+using costats.App.Services.Updates;
 using costats.App.ViewModels;
 using costats.Application.Abstractions;
 using costats.Application.Pulse;
@@ -23,6 +24,7 @@ namespace costats.App
     {
         private IHost? _host;
         private SingleInstanceCoordinator? _singleInstance;
+        private StartupUpdateCoordinator? _updateCoordinator;
 
         protected override void OnStartup(System.Windows.StartupEventArgs e)
         {
@@ -82,6 +84,14 @@ namespace costats.App
         {
             try
             {
+                var startupConfiguration = BuildStartupConfiguration();
+                _updateCoordinator = new StartupUpdateCoordinator(UpdateOptions.FromConfiguration(startupConfiguration));
+                if (await _updateCoordinator.TryApplyPendingUpdateAsync(CancellationToken.None).ConfigureAwait(false))
+                {
+                    await Dispatcher.InvokeAsync(() => Shutdown(0));
+                    return;
+                }
+
                 var settingsStore = new JsonSettingsStore();
                 var settings = await settingsStore.LoadAsync(CancellationToken.None).ConfigureAwait(false);
 
@@ -91,6 +101,11 @@ namespace costats.App
                     _ = StartListenerAsync(tray);
                     tray.ShowWidget();
                 });
+
+                if (_updateCoordinator is not null)
+                {
+                    _ = Task.Run(() => _updateCoordinator.CheckAndStageUpdateAsync(CancellationToken.None));
+                }
             }
             catch (Exception ex)
             {
@@ -101,6 +116,15 @@ namespace costats.App
                     MessageBoxImage.Error);
                 Shutdown(1);
             }
+        }
+
+        private static IConfiguration BuildStartupConfiguration()
+        {
+            return new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+                .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: false)
+                .Build();
         }
 
         private void RegisterExceptionHandlers()

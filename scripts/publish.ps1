@@ -6,7 +6,7 @@
     Creates self-contained, single-file executables for distribution.
 
 .PARAMETER Version
-    Version number for the build (e.g., 1.0.0). Defaults to 1.0.0.
+    Version number for the build (major.minor.patch). Defaults to VersionPrefix from src/Directory.Build.props.
 
 .PARAMETER Platform
     Target platform: x64, arm64, or all. Defaults to all.
@@ -24,7 +24,7 @@
 #>
 
 param(
-    [string]$Version = "1.0.0",
+    [string]$Version = "",
     [ValidateSet("x64", "arm64", "all")]
     [string]$Platform = "all",
     [ValidateSet("Release", "Debug")]
@@ -32,6 +32,40 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+function Get-DefaultVersion {
+    $propsPath = Join-Path $PSScriptRoot "..\src\Directory.Build.props"
+    if (-not (Test-Path $propsPath)) {
+        return "1.0.0"
+    }
+
+    [xml]$props = Get-Content -Path $propsPath -Raw
+    $propertyGroups = @($props.Project.PropertyGroup)
+    foreach ($group in $propertyGroups) {
+        if ($group.VersionPrefix) {
+            $candidate = [string]$group.VersionPrefix
+            if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+                return $candidate.Trim()
+            }
+        }
+    }
+
+    return "1.0.0"
+}
+
+function Assert-SemVer {
+    param([string]$Value)
+
+    if ($Value -notmatch '^\d+\.\d+\.\d+$') {
+        throw "Version must use major.minor.patch format (for example 1.2.3). Received: '$Value'."
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = Get-DefaultVersion
+}
+
+Assert-SemVer -Value $Version
 
 $projectPath = Join-Path $PSScriptRoot "..\src\costats.App\costats.App.csproj"
 $outputBase = Join-Path $PSScriptRoot "..\publish"
@@ -58,6 +92,7 @@ foreach ($rid in $platforms) {
         -p:IncludeNativeLibrariesForSelfExtract=true `
         -p:EnableCompressionInSingleFile=true `
         -p:DebugType=embedded `
+        -p:VersionPrefix=$Version `
         -p:Version=$Version
 
     if ($LASTEXITCODE -ne 0) {
@@ -69,8 +104,12 @@ foreach ($rid in $platforms) {
     $zipPath = Join-Path $outputBase "costats-$rid-v$Version.zip"
     if (Test-Path $zipPath) { Remove-Item $zipPath }
     Compress-Archive -Path "$outputPath\*" -DestinationPath $zipPath
+    $zipHash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $checksumPath = "$zipPath.sha256"
+    Set-Content -Path $checksumPath -Value "$zipHash  $(Split-Path -Path $zipPath -Leaf)" -Encoding Ascii
 
     Write-Host "Created: $zipPath" -ForegroundColor Green
+    Write-Host "Checksum: $checksumPath" -ForegroundColor Green
     Write-Host ""
 }
 

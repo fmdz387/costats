@@ -47,15 +47,15 @@ public sealed class PulseOrchestrator : BackgroundService, IPulseOrchestrator
         lock (_intervalLock)
         {
             _refreshInterval = interval;
-            // Cancel current timer to restart with new interval
-            _timerCts?.Cancel();
+            try { _timerCts?.Cancel(); }
+            catch (ObjectDisposedException) { }
         }
         _logger.LogInformation("Refresh interval updated to {Interval}", interval);
     }
 
     public async Task RefreshOnceAsync(RefreshTrigger trigger, CancellationToken cancellationToken)
     {
-        await _refreshGate.WaitAsync(cancellationToken);
+        await _refreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (ShouldShowShimmer(trigger))
@@ -69,25 +69,20 @@ public sealed class PulseOrchestrator : BackgroundService, IPulseOrchestrator
 
             var errors = new List<string>();
 
-            // Fetch all providers in parallel for performance
-            var fetchTasks = byProvider.Select(async kvp =>
+            // Keep provider reads sequential to avoid overlapping heavy file scans.
+            var providerReads = new Dictionary<string, ProviderReading>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (providerId, providerSources) in byProvider)
             {
-                var (providerId, providerSources) = kvp;
-                var reading = await _selector.SelectAsync(providerId, providerSources, cancellationToken);
-                return (providerId, reading);
-            });
-
-            var results = await Task.WhenAll(fetchTasks);
-            var providerReads = results.ToDictionary(
-                r => r.providerId,
-                r => r.reading,
-                StringComparer.OrdinalIgnoreCase);
+                cancellationToken.ThrowIfCancellationRequested();
+                var reading = await _selector.SelectAsync(providerId, providerSources, cancellationToken).ConfigureAwait(false);
+                providerReads[providerId] = reading;
+            }
 
             var state = new PulseState(providerReads, _clock.UtcNow, errors, false, trigger);
             _lastState = state;
             _hasSuccessfulLoad = true;
             _broadcaster.Publish(state);
-            await _snapshotWriter.WriteAsync(state, cancellationToken);
+            await _snapshotWriter.WriteAsync(state, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -124,7 +119,7 @@ public sealed class PulseOrchestrator : BackgroundService, IPulseOrchestrator
     public async Task RefreshProviderAsync(string providerId, CancellationToken cancellationToken)
     {
         // Silent refresh - don't wait if another refresh is in progress
-        if (!await _refreshGate.WaitAsync(0, cancellationToken))
+        if (!await _refreshGate.WaitAsync(0, cancellationToken).ConfigureAwait(false))
         {
             _logger.LogDebug("Skipping silent refresh for {ProviderId} - refresh already in progress", providerId);
             return;
@@ -142,7 +137,7 @@ public sealed class PulseOrchestrator : BackgroundService, IPulseOrchestrator
                 return;
             }
 
-            var reading = await _selector.SelectAsync(providerId, providerSources, cancellationToken);
+            var reading = await _selector.SelectAsync(providerId, providerSources, cancellationToken).ConfigureAwait(false);
 
             // Merge with existing state
             var existingProviders = _lastState?.Providers
@@ -172,7 +167,7 @@ public sealed class PulseOrchestrator : BackgroundService, IPulseOrchestrator
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await RefreshOnceAsync(RefreshTrigger.Initial, stoppingToken);
+        await RefreshOnceAsync(RefreshTrigger.Initial, stoppingToken).ConfigureAwait(false);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -180,15 +175,16 @@ public sealed class PulseOrchestrator : BackgroundService, IPulseOrchestrator
             lock (_intervalLock)
             {
                 currentInterval = _refreshInterval;
+                _timerCts?.Dispose();
                 _timerCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
             }
 
             try
             {
                 using var timer = new PeriodicTimer(currentInterval);
-                while (await timer.WaitForNextTickAsync(_timerCts.Token))
+                while (await timer.WaitForNextTickAsync(_timerCts.Token).ConfigureAwait(false))
                 {
-                    await RefreshOnceAsync(RefreshTrigger.Scheduled, _timerCts.Token);
+                    await RefreshOnceAsync(RefreshTrigger.Scheduled, _timerCts.Token).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
@@ -222,5 +218,17 @@ public sealed class PulseOrchestrator : BackgroundService, IPulseOrchestrator
         };
 
         _broadcaster.Publish(refreshing);
+    }
+
+    public override void Dispose()
+    {
+        lock (_intervalLock)
+        {
+            _timerCts?.Dispose();
+            _timerCts = null;
+        }
+
+        _refreshGate.Dispose();
+        base.Dispose();
     }
 }

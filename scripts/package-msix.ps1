@@ -8,7 +8,7 @@
     file for auto-updates.
 
 .PARAMETER Version
-    Package version (SemVer-style, 4-part required by MSIX). Example: 1.2.3.0
+    Version for the package. Accepts 1.2.3 or 1.2.3.0 (normalized to 4-part for MSIX).
 
 .PARAMETER Platform
     Target platform: x64 or arm64. Defaults to x64.
@@ -48,7 +48,7 @@
 #>
 
 param(
-    [string]$Version = "1.0.0.0",
+    [string]$Version = "",
     [ValidateSet("x64", "arm64")]
     [string]$Platform = "x64",
     [ValidateSet("Release", "Debug")]
@@ -76,6 +76,56 @@ $appLayout = Join-Path $stagingRoot "layout"
 $assetsDir = Join-Path $appLayout "Assets"
 $manifestTemplate = Join-Path $root "packaging\\AppxManifest.xml.template"
 $appinstallerTemplate = Join-Path $root "packaging\\costats.appinstaller.template"
+
+function Get-DefaultVersion {
+    $propsPath = Join-Path $root "src\\Directory.Build.props"
+    if (-not (Test-Path $propsPath)) {
+        return "1.0.0"
+    }
+
+    [xml]$props = Get-Content -Path $propsPath -Raw
+    $propertyGroups = @($props.Project.PropertyGroup)
+    foreach ($group in $propertyGroups) {
+        if ($group.VersionPrefix) {
+            $candidate = [string]$group.VersionPrefix
+            if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+                return $candidate.Trim()
+            }
+        }
+    }
+
+    return "1.0.0"
+}
+
+function Convert-ToVersionInfo {
+    param([string]$Value)
+
+    if ($Value -match '^(?<maj>\d+)\.(?<min>\d+)\.(?<patch>\d+)$') {
+        $semVer = "$($matches.maj).$($matches.min).$($matches.patch)"
+        return @{
+            SemVerVersion = $semVer
+            MsixVersion = "$semVer.0"
+        }
+    }
+
+    if ($Value -match '^(?<maj>\d+)\.(?<min>\d+)\.(?<patch>\d+)\.(?<rev>\d+)$') {
+        return @{
+            SemVerVersion = "$($matches.maj).$($matches.min).$($matches.patch)"
+            MsixVersion = "$($matches.maj).$($matches.min).$($matches.patch).$($matches.rev)"
+        }
+    }
+
+    throw "Version must be major.minor.patch or major.minor.patch.revision (for example 1.2.3 or 1.2.3.0). Received: '$Value'."
+}
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = Get-DefaultVersion
+}
+
+$versionInfo = Convert-ToVersionInfo -Value $Version
+$SemVerVersion = $versionInfo.SemVerVersion
+$Version = $versionInfo.MsixVersion
+Write-Host "Using app version $SemVerVersion (MSIX: $Version)" -ForegroundColor Cyan
 
 function Get-WindowsSdkTool {
     param([string]$ToolName)
@@ -228,7 +278,9 @@ dotnet publish $projectPath `
     -p:PublishSingleFile=true `
     -p:PublishReadyToRun=false `
     -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:EnableCompressionInSingleFile=true | Out-Null
+    -p:EnableCompressionInSingleFile=true `
+    -p:VersionPrefix=$SemVerVersion `
+    -p:Version=$SemVerVersion | Out-Null
 
 Ensure-Assets
 Write-Manifest -OutPath (Join-Path $appLayout "AppxManifest.xml")

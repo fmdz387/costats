@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using H.NotifyIcon;
@@ -12,6 +13,9 @@ namespace costats.App.Services
 {
     public sealed class TrayHost : IDisposable
     {
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool DestroyIcon(IntPtr hIcon);
+
         private readonly TaskbarIcon _taskbarIcon;
         private readonly GlassWidgetWindow _widgetWindow;
         private readonly SettingsWindow _settingsWindow;
@@ -80,7 +84,11 @@ namespace costats.App.Services
             g.DrawLine(pen, 16, 22, 16, 10);
             g.DrawLine(pen, 22, 22, 22, 16);
 
-            return Icon.FromHandle(bitmap.GetHicon());
+            var hIcon = bitmap.GetHicon();
+            using var tempIcon = Icon.FromHandle(hIcon);
+            var clonedIcon = (Icon)tempIcon.Clone();
+            DestroyIcon(hIcon);
+            return clonedIcon;
         }
 
         private ContextMenu BuildContextMenu()

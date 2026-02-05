@@ -19,6 +19,7 @@ A lightweight Windows tray app that shows live status for AI coding providers li
 iwr -useb https://raw.githubusercontent.com/fmdz387/costats/master/scripts/install.ps1 | iex
 ```
 Downloads the latest release, installs per-user and creates a Start Menu shortcut.
+Portable installs now auto-check for updates in the background on startup and stage updates safely for the next launch.
 
 **From source:** see **Build** below.
 
@@ -54,6 +55,13 @@ Common settings:
 Optional environment variable:
 - `CODEX_HOME` to point to a custom Codex config/logs directory.
 
+## Updates
+- Portable ZIP installs (`install.ps1`): on startup, costats checks GitHub Releases (default every 6 hours), stages a matching architecture update and applies it on the next startup via an external updater process so binaries can be replaced safely.
+- Integrity: if release checksum assets are present (`.sha256`), costats validates SHA-256 before staging.
+- Rollback safety: updater swap uses backup/rollback logic and writes logs to `%LOCALAPPDATA%\costats\updates\apply-update.log`.
+- MSIX/AppInstaller installs: `costats.appinstaller` uses OnLaunch checks and background update tasks managed by Windows App Installer.
+- Update policy can be configured in `appsettings.json` under `Costats:Update` (`Enabled`, `Repository`, `CheckIntervalHours`, `AllowPrerelease`, `ApplyStagedUpdateOnStartup`).
+
 ## Data sources
 - Codex usage: OAuth usage endpoint via `~/.codex/auth.json` (or `CODEX_HOME`), with local logs as a fallback for estimates.
 - Claude usage: OAuth usage endpoint via `~/.claude/.credentials.json`, with local logs as a fallback for estimates.
@@ -69,12 +77,13 @@ Optional environment variable:
 
 ## Build
 Requires a .NET SDK that supports `net10.0-windows`.
+Versioning is centralized via `src/Directory.Build.props` (`VersionPrefix` in `major.minor.patch` format).
 
 ```powershell
 # Build
 dotnet build .\costats.sln -c Release
 
-# Publish portable single-file binaries (x64 + arm64)
+# Publish portable single-file binaries (x64 + arm64), with .sha256 checksums
 .\scripts\publish.ps1
 ```
 

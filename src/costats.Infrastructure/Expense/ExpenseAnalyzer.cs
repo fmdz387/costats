@@ -17,7 +17,7 @@ public sealed class ExpenseAnalyzer
         var today = DateOnly.FromDateTime(DateTime.Now);
         var windowStart = today.AddDays(-(DefaultWindowDays - 1));
 
-        var slices = await LogDigestor.DigestClaudeLogsAsync(windowStart, today, cancellationToken);
+        var slices = await LogDigestor.DigestClaudeLogsAsync(windowStart, today, cancellationToken).ConfigureAwait(false);
         return BuildDigest(slices, today, DefaultWindowDays);
     }
 
@@ -29,7 +29,7 @@ public sealed class ExpenseAnalyzer
         var today = DateOnly.FromDateTime(DateTime.Now);
         var windowStart = today.AddDays(-(DefaultWindowDays - 1));
 
-        var slices = await LogDigestor.DigestCodexLogsAsync(windowStart, today, cancellationToken);
+        var slices = await LogDigestor.DigestCodexLogsAsync(windowStart, today, cancellationToken).ConfigureAwait(false);
         return BuildDigest(slices, today, DefaultWindowDays);
     }
 

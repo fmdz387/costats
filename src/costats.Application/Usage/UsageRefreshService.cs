@@ -21,7 +21,7 @@ public sealed class UsageRefreshService
         foreach (var provider in _providers)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var snapshot = await provider.FetchAsync(cancellationToken);
+            var snapshot = await provider.FetchAsync(cancellationToken).ConfigureAwait(false);
             results.Add(snapshot with { CapturedAt = _clock.UtcNow });
         }
 

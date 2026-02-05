@@ -21,16 +21,14 @@ public sealed class ClaudeLogSource : ISignalSource
     {
         var now = DateTimeOffset.UtcNow;
 
-        // Run OAuth, log scanning, and expense analysis in parallel for performance
+        // OAuth is a network call - run in parallel with file I/O
         var oauthTask = _oauthFetcher.FetchAsync(cancellationToken);
-        var logTask = _scanner.ScanClaudeAsync(cancellationToken);
-        var expenseTask = SafeAnalyzeExpenseAsync(cancellationToken);
 
-        await Task.WhenAll(oauthTask, logTask, expenseTask);
+        // Log scan and expense analysis both read the same files - run sequentially to halve peak memory
+        var logResult = await _scanner.ScanClaudeAsync(cancellationToken).ConfigureAwait(false);
+        var consumption = await SafeAnalyzeExpenseAsync(cancellationToken).ConfigureAwait(false);
 
-        var oauthResult = oauthTask.Result;
-        var logResult = logTask.Result;
-        var consumption = expenseTask.Result;
+        var oauthResult = await oauthTask.ConfigureAwait(false);
 
         if (oauthResult is null && logResult.SessionTokens == 0 && logResult.WeekTokens == 0)
         {
@@ -163,7 +161,7 @@ public sealed class ClaudeLogSource : ISignalSource
     {
         try
         {
-            return await _expenseAnalyzer.AnalyzeClaudeAsync(cancellationToken);
+            return await _expenseAnalyzer.AnalyzeClaudeAsync(cancellationToken).ConfigureAwait(false);
         }
         catch
         {
