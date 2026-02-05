@@ -1,12 +1,15 @@
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
-import { chromium } from "playwright";
+import { spawn, spawnSync } from "node:child_process";
 import { escapeHtml, formatDateRange, getPlaywrightCacheDir } from "./utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, "..");
+let playwrightLoadPromise = null;
+let attemptedPlaywrightInstall = false;
 
 // Funny titles based on user stats - classic programmer humor
 const TITLES = {
@@ -363,9 +366,10 @@ export async function renderCard(data, outputPath) {
   const html = applyTemplate(template, buildTemplateData(data, css));
 
   await withChromium(async () => {
+    const { chromium } = await loadPlaywright();
     const browser = await chromium.launch();
     try {
-      const page = await browser.newPage({ viewport: { width: 800, height: 800 } });
+      const page = await browser.newPage({ viewport: { width: 800, height: 640 } });
       await page.setContent(html, { waitUntil: "load" });
       await page.screenshot({ path: outputPath, type: "png" });
     } finally {
@@ -456,6 +460,37 @@ function ensurePlaywrightCachePath() {
   }
 }
 
+async function loadPlaywright() {
+  if (!playwrightLoadPromise) {
+    playwrightLoadPromise = importPlaywright();
+  }
+  return playwrightLoadPromise;
+}
+
+async function importPlaywright() {
+  try {
+    return await import("playwright");
+  } catch (error) {
+    if (isMissingPlaywright(error) && !attemptedPlaywrightInstall) {
+      attemptedPlaywrightInstall = true;
+      await installPlaywrightPackage();
+      return await import("playwright");
+    }
+    throw error;
+  }
+}
+
+function isMissingPlaywright(error) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  if (error.code !== "ERR_MODULE_NOT_FOUND") {
+    return false;
+  }
+  const message = typeof error.message === "string" ? error.message : "";
+  return message.includes("playwright");
+}
+
 async function withChromium(fn) {
   try {
     return await fn();
@@ -486,7 +521,10 @@ async function installChromium() {
 function resolvePlaywrightCli() {
   const binName = process.platform === "win32" ? "playwright.cmd" : "playwright";
   const candidate = path.join(__dirname, "..", "node_modules", ".bin", binName);
-  return candidate;
+  if (fsSync.existsSync(candidate)) {
+    return candidate;
+  }
+  return binName;
 }
 
 function runSilent(cmd, args, env) {
@@ -506,4 +544,76 @@ function runSilent(cmd, args, env) {
       }
     });
   });
+}
+
+async function installPlaywrightPackage() {
+  if (isEnvDisabled(process.env.COSTATS_NO_INSTALL)) {
+    throw new Error(
+      "Playwright is not installed. Run `pnpm install --prod` or `npm install --omit=dev` in tools/insights-cli."
+    );
+  }
+  const pm = detectPackageManager();
+  const hasPnpmLock = fsSync.existsSync(path.join(projectRoot, "pnpm-lock.yaml"));
+  const args =
+    pm === "pnpm"
+      ? ["install", "--prod", hasPnpmLock ? "--frozen-lockfile" : "--prefer-frozen-lockfile"]
+      : ["install", "--omit=dev", "--no-fund", "--no-audit"];
+  const env = { ...process.env, PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1" };
+  const result =
+    pm === "pnpm"
+      ? spawnSync(resolvePmCommand("pnpm"), args, { cwd: projectRoot, stdio: "inherit", env })
+      : runNpm(args, { cwd: projectRoot, stdio: "inherit", env });
+  if (result.error) {
+    const toolName = pm === "pnpm" ? "pnpm" : "npm";
+    throw new Error(`Failed to run ${toolName}. Is it installed and on PATH?`);
+  }
+  if (result.status !== 0) {
+    throw new Error(`Playwright install failed (exit code ${result.status}).`);
+  }
+}
+
+function detectPackageManager() {
+  const pnpmCmd = resolvePmCommand("pnpm");
+  if (commandAvailable(pnpmCmd)) {
+    return "pnpm";
+  }
+  if (isNpmAvailable()) {
+    return "npm";
+  }
+  throw new Error("No npm or pnpm found. Install Node.js (includes npm) or install pnpm.");
+}
+
+function resolvePmCommand(pm) {
+  if (process.platform === "win32") {
+    return `${pm}.cmd`;
+  }
+  return pm;
+}
+
+function commandAvailable(cmd) {
+  const check = spawnSync(cmd, ["-v"], { stdio: "ignore" });
+  return !check.error && check.status === 0;
+}
+
+function isNpmAvailable() {
+  const npmExecPath = process.env.npm_execpath;
+  if (npmExecPath && fsSync.existsSync(npmExecPath)) {
+    return true;
+  }
+  const npmCmd = resolvePmCommand("npm");
+  return commandAvailable(npmCmd);
+}
+
+function runNpm(args, options) {
+  const npmExecPath = process.env.npm_execpath;
+  if (npmExecPath && fsSync.existsSync(npmExecPath)) {
+    return spawnSync(process.execPath, [npmExecPath, ...args], options);
+  }
+  const npmCmd = resolvePmCommand("npm");
+  return spawnSync(npmCmd, args, options);
+}
+function isEnvDisabled(value) {
+  if (!value) return false;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes";
 }

@@ -28,7 +28,11 @@ export async function runCli(argv) {
   const outputPath = path.resolve(options.output || defaultOutputPath());
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
 
-  const spinner = ora({ text: "Composing your insights card...", spinner: "dots" }).start();
+  const spinner = ora({
+    text: "Composing your insights card...",
+    spinner: "dots",
+    isEnabled: Boolean(process.stdout.isTTY)
+  }).start();
   try {
     const html = await readReport(inputPath);
     let finalData = await generateInsightsFromHtml({
@@ -46,11 +50,20 @@ export async function runCli(argv) {
 
     await renderCard(finalData, outputPath);
 
+    let openError = null;
     if (options.open) {
-      await open(outputPath, { wait: false });
+      try {
+        await open(outputPath, { wait: false });
+      } catch (err) {
+        openError = err;
+      }
     }
 
     spinner.succeed(`Card generated: ${outputPath}`);
+    if (openError) {
+      const message = openError instanceof Error ? openError.message : String(openError);
+      console.warn("costats: unable to open the image: " + message);
+    }
   } catch (err) {
     spinner.fail(toUserMessage(err, inputPath));
     process.exitCode = 1;

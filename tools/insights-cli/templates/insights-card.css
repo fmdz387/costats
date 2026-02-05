@@ -15,8 +15,8 @@ body {
 
 .card {
   width: 800px;
-  height: 800px;
-  padding: 40px;
+  height: 640px;
+  padding: 32px 40px;
   background: #0d0d0d;
   display: flex;
   flex-direction: column;
@@ -27,7 +27,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .brand {
@@ -93,7 +93,7 @@ body {
   font-size: 16px;
   font-weight: 500;
   color: #f472b6;
-  margin-top: 16px;
+  margin-top: 10px;
   letter-spacing: -0.01em;
 }
 
@@ -101,8 +101,8 @@ body {
 .stats-row {
   display: flex;
   justify-content: space-between;
-  margin-top: 24px;
-  padding-top: 20px;
+  margin-top: 16px;
+  padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -113,7 +113,7 @@ body {
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: 34px;
   font-weight: 400;
   color: #ffffff;
   letter-spacing: -0.02em;
@@ -135,8 +135,8 @@ body {
 
 /* Title Badge */
 .title-badge {
-  margin-top: 24px;
-  padding: 16px 20px;
+  margin-top: 16px;
+  padding: 12px 18px;
   background: rgba(249, 115, 22, 0.1);
   border-left: 3px solid #f97316;
 }
@@ -157,8 +157,8 @@ body {
 .bottom-row {
   display: flex;
   gap: 32px;
-  margin-top: 16px;
-  padding-top: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -186,7 +186,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 12px;
+  padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 

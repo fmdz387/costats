@@ -1,15 +1,14 @@
 {
   "name": "costats",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "costats CLI for generating Claude Code Insights cards",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "costats": "bin/costats.js"
+    "costats": "dist/costats.js"
   },
   "files": [
-    "bin",
-    "src",
+    "dist",
     "templates",
     "README.md",
     "LICENSE"
@@ -35,10 +34,17 @@
   "engines": {
     "node": ">=18"
   },
+  "scripts": {
+    "build": "node scripts/build.js",
+    "prepack": "node scripts/build.js"
+  },
   "dependencies": {
+    "playwright": "^1.49.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0",
     "open": "^10.1.0",
     "ora": "^8.1.0",
-    "playwright": "^1.49.0",
     "zod": "^3.23.8"
   }
 }
