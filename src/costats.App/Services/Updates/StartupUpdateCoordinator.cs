@@ -140,16 +140,16 @@ public sealed class StartupUpdateCoordinator
         }
     }
 
-    public async Task CheckAndStageUpdateAsync(CancellationToken cancellationToken)
+    public async Task<UpdateCheckResult> CheckAndStageUpdateAsync(CancellationToken cancellationToken, bool forceCheck = false)
     {
         if (!_options.Enabled || !CanSelfUpdate())
         {
-            return;
+            return UpdateCheckResult.Disabled;
         }
 
         if (!await _checkLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
         {
-            return;
+            return UpdateCheckResult.AlreadyRunning;
         }
 
         try
@@ -158,15 +158,15 @@ public sealed class StartupUpdateCoordinator
             var pending = await ReadJsonAsync<PendingUpdate>(_pendingPath, cancellationToken).ConfigureAwait(false);
             if (pending is not null && IsPendingValidAndNewer(pending))
             {
-                return;
+                return UpdateCheckResult.UpdateAlreadyStaged;
             }
 
             var state = await ReadJsonAsync<UpdateState>(_statePath, cancellationToken).ConfigureAwait(false) ?? new UpdateState();
             var now = DateTimeOffset.UtcNow;
             var interval = TimeSpan.FromHours(_options.CheckIntervalHours);
-            if (state.LastCheckedUtc.HasValue && now - state.LastCheckedUtc.Value < interval)
+            if (!forceCheck && state.LastCheckedUtc.HasValue && now - state.LastCheckedUtc.Value < interval)
             {
-                return;
+                return UpdateCheckResult.Skipped;
             }
 
             using var request = new HttpRequestMessage(HttpMethod.Get, BuildLatestReleaseUri(_options.Repository));
@@ -185,13 +185,13 @@ public sealed class StartupUpdateCoordinator
             if (response.StatusCode == HttpStatusCode.NotModified)
             {
                 await WriteJsonAsync(_statePath, state, cancellationToken).ConfigureAwait(false);
-                return;
+                return UpdateCheckResult.UpToDate;
             }
 
             if (!response.IsSuccessStatusCode)
             {
                 await WriteJsonAsync(_statePath, state, cancellationToken).ConfigureAwait(false);
-                return;
+                return UpdateCheckResult.CheckFailed;
             }
 
             await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -199,26 +199,26 @@ public sealed class StartupUpdateCoordinator
             if (release is null)
             {
                 await WriteJsonAsync(_statePath, state, cancellationToken).ConfigureAwait(false);
-                return;
+                return UpdateCheckResult.CheckFailed;
             }
 
             if (release.Prerelease && !_options.AllowPrerelease)
             {
                 await WriteJsonAsync(_statePath, state, cancellationToken).ConfigureAwait(false);
-                return;
+                return UpdateCheckResult.UpToDate;
             }
 
             if (!TryGetBestAsset(release, out var zipAsset, out var releaseVersion))
             {
                 await WriteJsonAsync(_statePath, state, cancellationToken).ConfigureAwait(false);
-                return;
+                return UpdateCheckResult.UpToDate;
             }
 
             if (releaseVersion <= _currentVersion)
             {
                 state.LastSeenVersion = releaseVersion.ToString(3);
                 await WriteJsonAsync(_statePath, state, cancellationToken).ConfigureAwait(false);
-                return;
+                return UpdateCheckResult.UpToDate;
             }
 
             var downloadsDir = Path.Combine(_updatesRoot, "downloads");
@@ -269,10 +269,13 @@ public sealed class StartupUpdateCoordinator
 
             SafeDeleteFile(zipPath);
             CleanupOldStagingDirectories(stageDir);
+
+            return UpdateCheckResult.UpdateStaged;
         }
         catch (Exception ex)
         {
             Trace.WriteLine($"[costats-update] check/stage failed: {ex}");
+            return UpdateCheckResult.CheckFailed;
         }
         finally
         {

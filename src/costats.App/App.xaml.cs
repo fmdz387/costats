@@ -171,6 +171,11 @@ namespace costats.App
                     services.AddSingleton<ISettingsStore>(settingsStore);
                     services.AddSingleton(settings);
 
+                    if (_updateCoordinator is not null)
+                    {
+                        services.AddSingleton(_updateCoordinator);
+                    }
+
                     services.AddOptions<PulseOptions>()
                         .Configure<AppSettings>((options, appSettings) =>
                         {

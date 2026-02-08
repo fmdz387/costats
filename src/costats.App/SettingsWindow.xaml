@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:costats.App"
         Title="Settings"
         Width="360"
-        Height="350"
+        Height="430"
         WindowStyle="None"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -167,6 +167,25 @@
                 </DockPanel>
                 <TextBlock Text="How often costats polls for usage data in the background."
                            FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="0,0,0,0" />
+
+                <!-- Divider -->
+                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,16,0,16" />
+
+                <!-- Updates Section -->
+                <TextBlock Text="UPDATES" FontSize="10" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />
+
+                <DockPanel>
+                    <Button Content="Check for updates"
+                            Command="{Binding CheckForUpdatesCommand}"
+                            IsEnabled="{Binding IsCheckingForUpdates, Converter={x:Static local:BoolNegationConverter.Instance}}"
+                            Style="{StaticResource SettingsButton}"
+                            DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                    <TextBlock Text="{Binding UpdateStatusText}"
+                               FontSize="11" Foreground="{StaticResource TextFaintBrush}"
+                               VerticalAlignment="Center"
+                               Visibility="{Binding UpdateStatusText, Converter={x:Static local:StringToVisibilityConverter.Instance}}" />
+                </DockPanel>
 
             </StackPanel>
 
