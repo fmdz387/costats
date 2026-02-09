@@ -1,5 +1,7 @@
+using System.IO;
 using System.IO.Pipes;
 using System.Security.Principal;
+using Serilog;
 
 namespace costats.App.Services;
 

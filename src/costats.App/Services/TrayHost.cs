@@ -1,5 +1,13 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Windows;
+using System.Windows.Controls;
+using H.NotifyIcon;
+using costats.App.ViewModels;
+using costats.Application.Pulse;
+using costats.Core.Pulse;
+using Microsoft.Win32;
+using Serilog;
 
 namespace costats.App.Services
 {

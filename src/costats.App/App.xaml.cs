@@ -1,4 +1,24 @@
+using System.IO;
 using System.Reflection;
+using System.Windows;
+using costats.App.Services;
+using costats.App.Services.Updates;
+using costats.App.ViewModels;
+using costats.Application.Abstractions;
+using costats.Application.Pulse;
+using costats.Application.Security;
+using costats.Application.Settings;
+using costats.Application.Shell;
+using costats.Infrastructure.Providers;
+using costats.Infrastructure.Pulse;
+using costats.Infrastructure.Security;
+using costats.Infrastructure.Settings;
+using costats.Infrastructure.Time;
+using costats.Infrastructure.Windows;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Serilog;
 
 namespace costats.App
 {
