@@ -29,7 +29,11 @@ Portable installs now auto-check for updates in the background on startup and st
 - Open Settings to set refresh interval or start at login.
 
 ## Insights Card CLI
-Generate a shareable Claude Code Insights card from `report.html`:
+Generate a shareable Claude Code Insights card from `report.html` ([full docs](tools/insights-cli/README.md)):
+
+<p align="center">
+  <img src="tools/insights-cli/assets/costats-insights.png" alt="costats insights card example" width="400" />
+</p>
 
 ```powershell
 npx costats ccinsights
