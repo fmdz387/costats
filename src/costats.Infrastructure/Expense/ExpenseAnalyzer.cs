@@ -22,6 +22,18 @@ public sealed class ExpenseAnalyzer
     }
 
     /// <summary>
+    /// Produces a consumption digest for Claude Code from a specific log directory.
+    /// </summary>
+    public async Task<ConsumptionDigest> AnalyzeClaudeAsync(string logDirectory, CancellationToken cancellationToken = default)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var windowStart = today.AddDays(-(DefaultWindowDays - 1));
+
+        var slices = await LogDigestor.DigestClaudeLogsAsync(logDirectory, windowStart, today, cancellationToken).ConfigureAwait(false);
+        return BuildDigest(slices, today, DefaultWindowDays);
+    }
+
+    /// <summary>
     /// Produces a consumption digest for Codex.
     /// </summary>
     public async Task<ConsumptionDigest> AnalyzeCodexAsync(CancellationToken cancellationToken = default)

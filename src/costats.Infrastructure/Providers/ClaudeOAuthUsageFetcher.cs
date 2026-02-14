@@ -15,6 +15,7 @@ public sealed class ClaudeOAuthUsageFetcher : IDisposable
     private const string BetaHeader = "oauth-2025-04-20";
 
     private readonly HttpClient _httpClient;
+    private readonly string? _configDir;
 
     public ClaudeOAuthUsageFetcher()
     {
@@ -26,11 +27,16 @@ public sealed class ClaudeOAuthUsageFetcher : IDisposable
         _httpClient.DefaultRequestHeaders.Add("anthropic-beta", BetaHeader);
     }
 
+    public ClaudeOAuthUsageFetcher(string configDir) : this()
+    {
+        _configDir = configDir;
+    }
+
     public async Task<ClaudeOAuthUsageResult?> FetchAsync(CancellationToken cancellationToken)
     {
         try
         {
-            var credentials = await LoadCredentialsAsync();
+            var credentials = await LoadCredentialsAsync(_configDir);
             if (credentials?.AccessToken is null)
             {
                 return null;
@@ -59,10 +65,18 @@ public sealed class ClaudeOAuthUsageFetcher : IDisposable
         }
     }
 
-    private static async Task<ClaudeCredentials?> LoadCredentialsAsync()
+    private static async Task<ClaudeCredentials?> LoadCredentialsAsync(string? configDir)
     {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var credentialsPath = Path.Combine(home, ".claude", ".credentials.json");
+        string credentialsPath;
+        if (configDir is not null)
+        {
+            credentialsPath = Path.Combine(configDir, ".credentials.json");
+        }
+        else
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            credentialsPath = Path.Combine(home, ".claude", ".credentials.json");
+        }
 
         if (!File.Exists(credentialsPath))
         {

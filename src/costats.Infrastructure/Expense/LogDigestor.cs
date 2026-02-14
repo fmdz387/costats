@@ -25,6 +25,19 @@ public static class LogDigestor
         return Task.Run(() => DigestClaudeLogsCore(since, until, cancellationToken), cancellationToken);
     }
 
+    /// <summary>
+    /// Digests Claude Code log files from a specific directory and produces consumption slices.
+    /// </summary>
+    public static Task<IReadOnlyList<ConsumptionSlice>> DigestClaudeLogsAsync(
+        string logDirectory,
+        DateOnly since,
+        DateOnly until,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.Run(() => DigestClaudeLogsCore(logDirectory, since, until, cancellationToken), cancellationToken);
+    }
+
     private static IReadOnlyList<ConsumptionSlice> DigestClaudeLogsCore(
         DateOnly since,
         DateOnly until,
@@ -40,6 +53,28 @@ public static class LogDigestor
 
         // Scan all project directories recursively (includes subagents subdirectories)
         foreach (var projectDir in Directory.EnumerateDirectories(logDir))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ScanClaudeDirectoryRecursive(projectDir, since, until, cutoff, aggregates, dedupeSet, cancellationToken);
+        }
+
+        return BuildAggregatedSlices(aggregates);
+    }
+
+    private static IReadOnlyList<ConsumptionSlice> DigestClaudeLogsCore(
+        string logDirectory,
+        DateOnly since,
+        DateOnly until,
+        CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(logDirectory))
+            return [];
+
+        var aggregates = new Dictionary<DateOnly, Dictionary<string, SliceAccumulator>>();
+        var dedupeSet = new HashSet<MessageRequestKey>();
+        var cutoff = since.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc) - TimeSpan.FromDays(1);
+
+        foreach (var projectDir in Directory.EnumerateDirectories(logDirectory))
         {
             cancellationToken.ThrowIfCancellationRequested();
             ScanClaudeDirectoryRecursive(projectDir, since, until, cutoff, aggregates, dedupeSet, cancellationToken);
