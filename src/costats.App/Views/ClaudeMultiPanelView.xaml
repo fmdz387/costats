@@ -8,22 +8,26 @@
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="#4A4760" />
         <SolidColorBrush x:Key="TextMutedBrush" Color="#7A7890" />
         <SolidColorBrush x:Key="TextFaintBrush" Color="#9A98A8" />
-        <SolidColorBrush x:Key="DividerBrush" Color="#D0CDE0" />
         <SolidColorBrush x:Key="TrackBrush" Color="#D8D5E8" />
-        <SolidColorBrush x:Key="SessionAccent" Color="#F59E0B" />
-        <SolidColorBrush x:Key="WeeklyAccent" Color="#8B5CF6" />
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
 
-        <Style x:Key="CompactProgressBar" TargetType="ProgressBar">
-            <Setter Property="Height" Value="6" />
+        <!-- Fixed accent colors matching the single-provider Codex tab -->
+        <SolidColorBrush x:Key="SessionBarBrush" Color="#F59E0B" />
+        <SolidColorBrush x:Key="SessionTextBrush" Color="#B45309" />
+        <SolidColorBrush x:Key="WeeklyBarBrush" Color="#8B5CF6" />
+        <SolidColorBrush x:Key="WeeklyTextBrush" Color="#6D28D9" />
+
+        <!-- Progress bar: 7px, fully rounded -->
+        <Style x:Key="MetricProgressBar" TargetType="ProgressBar">
+            <Setter Property="Height" Value="7" />
             <Setter Property="Background" Value="{StaticResource TrackBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
                         <Grid>
-                            <Border x:Name="PART_Track" CornerRadius="3" Background="{TemplateBinding Background}" />
-                            <Border x:Name="PART_Indicator" CornerRadius="3" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}">
+                            <Border x:Name="PART_Track" CornerRadius="3.5" Background="{TemplateBinding Background}" />
+                            <Border x:Name="PART_Indicator" CornerRadius="3.5" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}">
                                 <Border.Width>
                                     <MultiBinding Converter="{x:Static local:ProgressWidthConverter.Instance}">
                                         <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Value" />
@@ -40,109 +44,118 @@
     </UserControl.Resources>
 
     <StackPanel>
-        <!-- Summary bar -->
-        <Border Padding="8,6" Margin="0,0,0,10" CornerRadius="6" Background="#0A6366F1">
+        <!-- Summary bar: health breakdown -->
+        <Border Padding="12,8" Margin="0,0,0,0" CornerRadius="6" Background="#0A6366F1">
             <DockPanel>
-                <TextBlock Text="{Binding MulticcSummary}" FontSize="11" FontWeight="Medium"
-                           Foreground="{StaticResource TextSecondaryBrush}"
-                           AutomationProperties.Name="Multicc profile summary" />
-                <TextBlock Text="{Binding UpdatedLabel}" FontSize="10"
+                <TextBlock Text="{Binding UpdatedLabel}" FontSize="10.5"
                            Foreground="{StaticResource TextFaintBrush}"
-                           DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                           DockPanel.Dock="Right" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding MulticcSummary}" FontSize="11.5" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"
+                           AutomationProperties.Name="Multicc profile summary" />
             </DockPanel>
         </Border>
 
-        <!-- Scrollable stacked profile cards -->
-        <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="460"
-                      Focusable="False">
-            <ItemsControl ItemsSource="{Binding ClaudeProfiles}"
-                          Focusable="False">
+        <!-- Scrollable stacked profile sections (window height constrains viewport) -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+            <ItemsControl ItemsSource="{Binding ClaudeProfiles}" Focusable="False">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Margin="0,0,0,8" Padding="10,8" CornerRadius="6"
-                                Background="#08000000" BorderBrush="{StaticResource DividerBrush}" BorderThickness="1"
-                                AutomationProperties.Name="{Binding DisplayName}">
-                            <StackPanel>
-                                <!-- Header row: Profile name + Plan badge + Status indicator -->
-                                <DockPanel Margin="0,0,0,6">
-                                    <TextBlock Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold"
-                                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                        <StackPanel Margin="0,0,0,0"
+                                    AutomationProperties.Name="{Binding DisplayName}">
 
-                                    <!-- Status dot -->
-                                    <Ellipse Width="8" Height="8" DockPanel.Dock="Right" Margin="8,0,0,0"
-                                             VerticalAlignment="Center"
-                                             AutomationProperties.Name="{Binding OverallStatusText}">
-                                        <Ellipse.Fill>
-                                            <SolidColorBrush Color="{Binding OverallStatusColor}" />
-                                        </Ellipse.Fill>
-                                    </Ellipse>
+                            <!-- Faded elegant separator (equal 10px above and below) -->
+                            <Border Height="1" Margin="0,10,0,10">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                        <GradientStop Color="Transparent" Offset="0" />
+                                        <GradientStop Color="#40D0CDE0" Offset="0.1" />
+                                        <GradientStop Color="#40D0CDE0" Offset="0.9" />
+                                        <GradientStop Color="Transparent" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
 
-                                    <!-- Status text (accessibility: not color-only) -->
-                                    <TextBlock Text="{Binding OverallStatusText}" FontSize="9"
-                                               DockPanel.Dock="Right" VerticalAlignment="Center"
-                                               Margin="4,0,0,0">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{StaticResource TextFaintBrush}" />
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
+                            <!-- HEADER: profile name + Claude-styled plan pill -->
+                            <DockPanel Margin="0,0,0,8">
+                                <!-- Plan pill (Claude orange, right-aligned) -->
+                                <Border DockPanel.Dock="Right" CornerRadius="4" Padding="6,2"
+                                        VerticalAlignment="Center"
+                                        BorderBrush="#F97316" BorderThickness="1">
+                                    <Border.Background>
+                                        <SolidColorBrush Color="#F97316" Opacity="0.12" />
+                                    </Border.Background>
+                                    <TextBlock Text="{Binding PlanText}" FontSize="9.5" FontWeight="SemiBold"
+                                               Foreground="#C2410C" />
+                                </Border>
 
-                                    <!-- Plan chip -->
-                                    <Border DockPanel.Dock="Right" CornerRadius="3" Padding="5,1" Margin="8,0,0,0"
-                                            VerticalAlignment="Center"
-                                            BorderBrush="#F97316" BorderThickness="1">
-                                        <Border.Background>
-                                            <SolidColorBrush Color="#F97316" Opacity="0.12" />
-                                        </Border.Background>
-                                        <TextBlock Text="{Binding PlanText}" FontSize="9" FontWeight="SemiBold" Foreground="#C2410C" />
-                                    </Border>
+                                <!-- Profile name -->
+                                <TextBlock Text="{Binding DisplayName}" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                            </DockPanel>
+
+                            <!-- SESSION METRIC -->
+                            <StackPanel Margin="0,0,0,8">
+                                <!-- Line 1: label left, hero percentage right -->
+                                <DockPanel>
+                                    <TextBlock Text="Session" FontSize="11" FontWeight="Medium"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               VerticalAlignment="Bottom" />
+                                    <TextBlock Text="{Binding SessionPercentText}" FontSize="20" FontWeight="SemiBold"
+                                               Foreground="{StaticResource SessionTextBrush}"
+                                               DockPanel.Dock="Right" HorizontalAlignment="Right" />
                                 </DockPanel>
-
-                                <!-- Session progress bar -->
-                                <DockPanel Margin="0,0,0,4">
-                                    <TextBlock Text="Session" FontSize="10" Width="48"
-                                               Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding SessionResetText}" FontSize="9"
+                                <!-- Line 2: full-width bar + reset text -->
+                                <DockPanel Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding SessionResetText}" FontSize="10"
                                                Foreground="{StaticResource TextFaintBrush}"
-                                               DockPanel.Dock="Right" HorizontalAlignment="Right"
-                                               VerticalAlignment="Center" Margin="6,0,0,0" />
-                                    <TextBlock Text="{Binding SessionUsageLabel}" FontSize="10"
-                                               Foreground="{StaticResource TextSecondaryBrush}"
-                                               DockPanel.Dock="Right" HorizontalAlignment="Right"
-                                               VerticalAlignment="Center" Margin="6,0,0,0" />
+                                               DockPanel.Dock="Right" VerticalAlignment="Center"
+                                               Margin="10,0,0,0"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="100" />
                                     <ProgressBar Value="{Binding SessionProgress}" Maximum="1"
-                                                 Foreground="{StaticResource SessionAccent}"
-                                                 Style="{StaticResource CompactProgressBar}"
+                                                 Foreground="{StaticResource SessionBarBrush}"
+                                                 Style="{StaticResource MetricProgressBar}"
                                                  VerticalAlignment="Center"
                                                  AutomationProperties.Name="{Binding SessionUsageLabel}" />
                                 </DockPanel>
+                            </StackPanel>
 
-                                <!-- Weekly progress bar -->
+                            <!-- WEEKLY METRIC -->
+                            <StackPanel>
                                 <DockPanel>
-                                    <TextBlock Text="Weekly" FontSize="10" Width="48"
-                                               Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding WeekResetText}" FontSize="9"
+                                    <TextBlock Text="Weekly" FontSize="11" FontWeight="Medium"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               VerticalAlignment="Bottom" />
+                                    <TextBlock Text="{Binding WeekPercentText}" FontSize="20" FontWeight="SemiBold"
+                                               Foreground="{StaticResource WeeklyTextBrush}"
+                                               DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                                </DockPanel>
+                                <DockPanel Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding WeekResetText}" FontSize="10"
                                                Foreground="{StaticResource TextFaintBrush}"
-                                               DockPanel.Dock="Right" HorizontalAlignment="Right"
-                                               VerticalAlignment="Center" Margin="6,0,0,0" />
-                                    <TextBlock Text="{Binding WeekUsageLabel}" FontSize="10"
-                                               Foreground="{StaticResource TextSecondaryBrush}"
-                                               DockPanel.Dock="Right" HorizontalAlignment="Right"
-                                               VerticalAlignment="Center" Margin="6,0,0,0" />
+                                               DockPanel.Dock="Right" VerticalAlignment="Center"
+                                               Margin="10,0,0,0"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="100" />
                                     <ProgressBar Value="{Binding WeekProgress}" Maximum="1"
-                                                 Foreground="{StaticResource WeeklyAccent}"
-                                                 Style="{StaticResource CompactProgressBar}"
+                                                 Foreground="{StaticResource WeeklyBarBrush}"
+                                                 Style="{StaticResource MetricProgressBar}"
                                                  VerticalAlignment="Center"
                                                  AutomationProperties.Name="{Binding WeekUsageLabel}" />
                                 </DockPanel>
-
-                                <!-- Extra usage (overage) if available -->
-                                <TextBlock Text="{Binding ExtraUsageLabel}" FontSize="10"
-                                           Foreground="{StaticResource TextFaintBrush}" Margin="0,4,0,0"
-                                           Visibility="{Binding HasExtraUsage, Converter={StaticResource BoolToVisibilityConverter}}" />
                             </StackPanel>
-                        </Border>
+
+                            <!-- COST FOOTER -->
+                            <TextBlock Text="{Binding CompactCostText}" FontSize="10.5"
+                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,6,0,0"
+                                       Visibility="{Binding HasCompactCost, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                            <!-- OVERAGE / BALANCE FOOTER -->
+                            <TextBlock Text="{Binding ExtraUsageLabel}" FontSize="10.5"
+                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"
+                                       Visibility="{Binding HasExtraUsage, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                        </StackPanel>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

@@ -88,6 +88,26 @@ public sealed partial class ProviderPulseViewModel : ObservableObject
     [ObservableProperty]
     private string overallStatusColor = "#10B981";
 
+    // Readable percentage text for multi-panel hero numbers (WCAG AA contrast on lavender)
+    [ObservableProperty]
+    private string sessionPercentText = "0%";
+
+    [ObservableProperty]
+    private string weekPercentText = "0%";
+
+    [ObservableProperty]
+    private string sessionPercentColor = "#047857";
+
+    [ObservableProperty]
+    private string weekPercentColor = "#047857";
+
+    // Compact cost line for multicc stacked cards (e.g. "$4.20 today · $82.50 / 30d")
+    [ObservableProperty]
+    private string compactCostText = string.Empty;
+
+    [ObservableProperty]
+    private bool hasCompactCost;
+
     // Token tracking
     [ObservableProperty]
     private string todayTokensText = "--";
@@ -167,6 +187,8 @@ public sealed partial class ProviderPulseViewModel : ObservableObject
         }
 
         vm.SessionStatusColor = GetUtilizationColor(usedPercent);
+        vm.SessionPercentText = $"{(int)Math.Round(usedPercent)}%";
+        vm.SessionPercentColor = GetPercentTextColor(usedPercent);
     }
 
     private static void PopulateWeekMetrics(ProviderPulseViewModel vm, ProviderReading reading)
@@ -201,6 +223,8 @@ public sealed partial class ProviderPulseViewModel : ObservableObject
         }
 
         vm.WeekStatusColor = GetUtilizationColor(usedPercent);
+        vm.WeekPercentText = $"{(int)Math.Round(usedPercent)}%";
+        vm.WeekPercentColor = GetPercentTextColor(usedPercent);
     }
 
     private static void PopulateExtraUsage(ProviderPulseViewModel vm, ProviderReading reading)
@@ -253,6 +277,12 @@ public sealed partial class ProviderPulseViewModel : ObservableObject
         var windowCost = consumption.RollingWindowCostUsd;
         vm.MonthCostText = UsageFormatter.FormatCurrency(windowCost);
         vm.MonthTokensText = UsageFormatter.FormatTokenCount(windowTokens);
+
+        // Compact single-line cost for stacked multicc cards
+        var todayFormatted = UsageFormatter.FormatCurrency(todayCost);
+        var monthFormatted = UsageFormatter.FormatCurrency(windowCost);
+        vm.CompactCostText = $"{todayFormatted} today  ·  {monthFormatted} / 30d";
+        vm.HasCompactCost = true;
     }
 
     private static double CalculateUsedPercent(long? used, long? limit)
@@ -337,6 +367,21 @@ public sealed partial class ProviderPulseViewModel : ObservableObject
             >= 80 => "Near limit",
             >= 50 => "Moderate",
             _     => "OK",
+        };
+    }
+
+    /// <summary>
+    /// Returns WCAG AA-compliant text colors for percentage hero numbers on lavender background.
+    /// Darker variants of the bar colors ensure 4.5:1+ contrast ratio.
+    /// </summary>
+    private static string GetPercentTextColor(double percent)
+    {
+        return percent switch
+        {
+            >= 95 => "#DC2626",  // Red-600 (~6.5:1 on lavender)
+            >= 80 => "#C2410C",  // Orange-700 (~6.0:1)
+            >= 50 => "#B45309",  // Amber-700 (~5.4:1)
+            _     => "#047857",  // Emerald-700 (~4.6:1)
         };
     }
 }

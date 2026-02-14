@@ -176,13 +176,20 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
 
                 IsMulticcActive = ClaudeProfiles.Count > 0;
 
-                // Build summary text for multicc header
+                // Build summary text with health breakdown for multicc header
                 if (IsMulticcActive)
                 {
-                    var nearLimit = ClaudeProfiles.Count(p => p.SessionProgress >= 0.80);
-                    MulticcSummary = nearLimit > 0
-                        ? $"{ClaudeProfiles.Count} profiles | {nearLimit} near limit"
-                        : $"{ClaudeProfiles.Count} profiles | All healthy";
+                    var total = ClaudeProfiles.Count;
+                    var critical = ClaudeProfiles.Count(p => p.SessionProgress >= 0.95);
+                    var warning = ClaudeProfiles.Count(p => p.SessionProgress >= 0.80 && p.SessionProgress < 0.95);
+                    var healthy = total - critical - warning;
+
+                    if (critical > 0)
+                        MulticcSummary = $"{total} profiles  ·  {critical} at limit, {warning} warning";
+                    else if (warning > 0)
+                        MulticcSummary = $"{total} profiles  ·  {warning} near limit";
+                    else
+                        MulticcSummary = $"{total} profiles  ·  All healthy";
                 }
                 else
                 {

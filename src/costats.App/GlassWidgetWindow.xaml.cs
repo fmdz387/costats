@@ -68,13 +68,8 @@ namespace costats.App
 
             if (vm.IsMulticcActive && vm.SelectedTabIndex == 1)
             {
-                var profileCount = vm.ClaudeProfiles.Count;
-                const double baseHeight = 280.0;   // Header + tabs + summary bar
-                const double summaryBarHeight = 40.0;
-                const double perCardHeight = 90.0;
-                const double footerHeight = 80.0;
-                var totalHeight = baseHeight + summaryBarHeight + (profileCount * perCardHeight) + footerHeight;
-                Height = Math.Min(Math.Max(totalHeight, 580.0), 900.0);
+                // Fixed height sized for 2 profiles; 3+ profiles scroll within
+                Height = 650.0;
             }
             else
             {

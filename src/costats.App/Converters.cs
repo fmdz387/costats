@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Media;
 
 namespace costats.App;
 
@@ -85,6 +86,44 @@ public sealed class BoolNegationConverter : IValueConverter
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         return value is true ? false : true;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException();
+    }
+}
+
+/// <summary>
+/// Converts a hex color string (e.g. "#EF4444") to a SolidColorBrush.
+/// Used for threshold-based dynamic coloring in multicc cards.
+/// </summary>
+public sealed class HexToBrushConverter : IValueConverter
+{
+    public static HexToBrushConverter Instance { get; } = new();
+
+    private static readonly Dictionary<string, SolidColorBrush> Cache = new(StringComparer.OrdinalIgnoreCase);
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not string hex || string.IsNullOrEmpty(hex))
+            return Brushes.Transparent;
+
+        if (Cache.TryGetValue(hex, out var cached))
+            return cached;
+
+        try
+        {
+            var color = (Color)ColorConverter.ConvertFromString(hex);
+            var brush = new SolidColorBrush(color);
+            brush.Freeze();
+            Cache[hex] = brush;
+            return brush;
+        }
+        catch
+        {
+            return Brushes.Transparent;
+        }
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
