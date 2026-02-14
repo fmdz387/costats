@@ -18,6 +18,7 @@ using costats.Infrastructure.Windows;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
 using Serilog;
 
 namespace costats.App
@@ -239,7 +240,47 @@ namespace costats.App
                     services.AddSingleton<PulseBroadcaster>();
                     services.AddSingleton<ISourceSelector, SourceSelector>();
                     services.AddSingleton<ISignalSource, CodexLogSource>();
-                    services.AddSingleton<ISignalSource, ClaudeLogSource>();
+                    // Multicc integration: conditionally register per-profile or default Claude source
+                    services.AddSingleton<MulticcConfigReader>();
+
+                    var tempReader = new MulticcConfigReader(
+                        Microsoft.Extensions.Logging.Abstractions.NullLogger<MulticcConfigReader>.Instance);
+                    var discovery = new MulticcDiscoveryService(tempReader, settings.MulticcConfigPath);
+
+                    services.AddSingleton<IMulticcDiscovery>(discovery);
+
+                    if (settings.MulticcEnabled && discovery.IsDetected && discovery.Profiles.Count > 0)
+                    {
+                        if (settings.MulticcSelectedProfile is not null)
+                        {
+                            // Single-profile mode: register one source for the selected profile
+                            var selected = discovery.Profiles
+                                .FirstOrDefault(p => p.Name.Equals(settings.MulticcSelectedProfile, StringComparison.OrdinalIgnoreCase));
+
+                            if (selected is not null)
+                            {
+                                services.AddSingleton<ISignalSource>(new MulticcClaudeLogSource(selected));
+                            }
+                            else
+                            {
+                                // Fallback to default Claude source if selected profile not found
+                                services.AddSingleton<ISignalSource, ClaudeLogSource>();
+                            }
+                        }
+                        else
+                        {
+                            // Stacked mode: register one source per profile
+                            foreach (var profile in discovery.Profiles)
+                            {
+                                services.AddSingleton<ISignalSource>(new MulticcClaudeLogSource(profile));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // No multicc or disabled: use default Claude source
+                        services.AddSingleton<ISignalSource, ClaudeLogSource>();
+                    }
                     services.AddSingleton<IPulseSnapshotWriter, JsonPulseSnapshotWriter>();
                     services.AddSingleton<IPulseOrchestrator, PulseOrchestrator>();
                     services.AddHostedService(sp => (PulseOrchestrator)sp.GetRequiredService<IPulseOrchestrator>());

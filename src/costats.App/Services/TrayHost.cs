@@ -44,6 +44,7 @@ namespace costats.App.Services
             _taskbarIcon.ForceCreate(enablesEfficiencyMode: false);
 
             SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+            _widgetWindow.SizeChanged += OnWidgetSizeChanged;
         }
 
         private void OnTrayLeftClick(object? sender, EventArgs e)
@@ -177,10 +178,19 @@ namespace costats.App.Services
 
         public void Dispose()
         {
+            _widgetWindow.SizeChanged -= OnWidgetSizeChanged;
             SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
             _taskbarIcon.Dispose();
             _widgetWindow.Close();
             _settingsWindow.Close();
+        }
+
+        private void OnWidgetSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (_widgetWindow.IsVisible)
+            {
+                PositionWidget();
+            }
         }
 
         private void OnDisplaySettingsChanged(object? sender, EventArgs e)
