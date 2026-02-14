@@ -113,8 +113,10 @@ namespace costats.App
 
                 if (_updateCoordinator is not null)
                 {
+                    // Use a timeout so a stalled download never holds the semaphore forever
+                    var backgroundCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                     LogFireAndForget(
-                        Task.Run(() => _updateCoordinator.CheckAndStageUpdateAsync(CancellationToken.None)),
+                        Task.Run(() => _updateCoordinator.CheckAndStageUpdateAsync(backgroundCts.Token)),
                         "UpdateCheck");
                 }
 

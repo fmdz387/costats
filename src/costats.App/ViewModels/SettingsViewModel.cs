@@ -138,21 +138,28 @@ public sealed partial class SettingsViewModel : ObservableObject
             return;
         }
 
+        // Cancel any previous in-flight check before starting a new one
+        _updateCheckCts?.Cancel();
+        _updateCheckCts?.Dispose();
+        _updateCheckCts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        var ct = _updateCheckCts.Token;
+
         IsCheckingForUpdates = true;
         UpdateStatusText = "Checking for updates...";
 
         try
         {
-            var result = await Task.Run(() => _updateCoordinator.CheckAndStageUpdateAsync(CancellationToken.None, forceCheck: true));
+            var result = await Task.Run(() => _updateCoordinator.CheckAndStageUpdateAsync(ct, forceCheck: true), ct);
 
             switch (result)
             {
                 case UpdateCheckResult.UpdateStaged:
                 case UpdateCheckResult.UpdateAlreadyStaged:
                     UpdateStatusText = "Update found. Restarting...";
-                    if (await Task.Run(() => _updateCoordinator.TryApplyPendingUpdateAsync(CancellationToken.None)))
+                    if (await Task.Run(() => _updateCoordinator.TryApplyPendingUpdateAsync(ct, manualTrigger: true), ct))
                     {
-                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        // Use BeginInvoke to avoid any potential deadlock with synchronous Invoke
+                        _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
                             System.Windows.Application.Current.Shutdown(0));
                     }
                     else
@@ -185,12 +192,19 @@ public sealed partial class SettingsViewModel : ObservableObject
                     break;
             }
         }
+        catch (OperationCanceledException)
+        {
+            UpdateStatusText = "Update check timed out. Try again.";
+            IsCheckingForUpdates = false;
+        }
         catch
         {
             UpdateStatusText = "Could not check for updates.";
             IsCheckingForUpdates = false;
         }
     }
+
+    private CancellationTokenSource? _updateCheckCts;
 
     private async Task SaveSettingsAsync()
     {

@@ -67,9 +67,18 @@ public sealed class StartupUpdateCoordinator
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
     }
 
-    public async Task<bool> TryApplyPendingUpdateAsync(CancellationToken cancellationToken)
+    public Task<bool> TryApplyPendingUpdateAsync(CancellationToken cancellationToken)
+        => TryApplyPendingUpdateAsync(cancellationToken, manualTrigger: false);
+
+    public async Task<bool> TryApplyPendingUpdateAsync(CancellationToken cancellationToken, bool manualTrigger)
     {
-        if (!_options.Enabled || !_options.ApplyStagedUpdateOnStartup || !CanSelfUpdate())
+        if (!_options.Enabled || !CanSelfUpdate())
+        {
+            return false;
+        }
+
+        // Only gate on ApplyStagedUpdateOnStartup for automatic (non-manual) triggers
+        if (!manualTrigger && !_options.ApplyStagedUpdateOnStartup)
         {
             return false;
         }
@@ -147,7 +156,7 @@ public sealed class StartupUpdateCoordinator
             return UpdateCheckResult.Disabled;
         }
 
-        if (!await _checkLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+        if (!await _checkLock.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false))
         {
             return UpdateCheckResult.AlreadyRunning;
         }
@@ -588,10 +597,15 @@ public sealed class StartupUpdateCoordinator
         using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
+        // HttpClient.Timeout only covers headers with ResponseHeadersRead.
+        // Add an explicit timeout for the body download to prevent indefinite hangs.
+        using var downloadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        downloadCts.CancelAfter(TimeSpan.FromMinutes(3));
+
+        await using (var source = await response.Content.ReadAsStreamAsync(downloadCts.Token).ConfigureAwait(false))
         await using (var destination = File.Create(tempPath))
         {
-            await source.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
+            await source.CopyToAsync(destination, downloadCts.Token).ConfigureAwait(false);
         }
 
         SafeDeleteFile(destinationPath);
