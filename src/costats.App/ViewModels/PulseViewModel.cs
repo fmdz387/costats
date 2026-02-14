@@ -51,6 +51,22 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
     [ObservableProperty]
     private string multiccSummary = string.Empty;
 
+    // Aggregate cost/token totals across all multicc profiles
+    [ObservableProperty]
+    private string multiccTotalTodayCost = "--";
+
+    [ObservableProperty]
+    private string multiccTotalTodayTokens = "--";
+
+    [ObservableProperty]
+    private string multiccTotalWeekCost = "--";
+
+    [ObservableProperty]
+    private string multiccTotalWeekTokens = "--";
+
+    [ObservableProperty]
+    private bool hasMulticcTotals;
+
     public ObservableCollection<ProviderPulseViewModel> ClaudeProfiles { get; } = new();
 
     /// <summary>
@@ -80,9 +96,6 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
     {
         OnPropertyChanged(nameof(SelectedProvider));
         OnPropertyChanged(nameof(SelectedProviderId));
-
-        // Silent refresh when switching tabs
-        _ = RefreshSelectedProviderSilentlyAsync();
     }
 
     /// <summary>
@@ -132,72 +145,113 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
             // Only update provider data if we have providers (keep last state during refresh)
             if (value.Providers.Count > 0)
             {
-                Providers.Clear();
-                ClaudeProfiles.Clear();
+                // ── Build all data in local variables first (no UI mutations yet) ──
+                var newProviders = new List<ProviderPulseViewModel>();
+                var claudeProfileList = new List<ProviderPulseViewModel>();
+                ProviderPulseViewModel? newCodex = null;
+                ProviderPulseViewModel? newClaude = null;
 
-                ProviderPulseViewModel? firstClaude = null;
+                // Aggregate cost/token totals across multicc profiles
+                decimal totalTodayCost = 0;
+                long totalTodayTokens = 0;
+                decimal totalWeekCost = 0;
+                long totalWeekTokens = 0;
+                var today = DateOnly.FromDateTime(DateTime.Now);
+                var weekStart = today.AddDays(-((int)today.DayOfWeek == 0 ? 6 : (int)today.DayOfWeek - 1)); // Monday
 
                 foreach (var (providerId, reading) in value.Providers)
                 {
                     var displayName = _displayNames.TryGetValue(providerId, out var name) ? name : providerId;
                     var vm = ProviderPulseViewModel.FromReading(reading, displayName);
-                    Providers.Add(vm);
+                    newProviders.Add(vm);
 
                     if (providerId.Equals("codex", StringComparison.OrdinalIgnoreCase))
                     {
-                        Codex = vm;
+                        newCodex = vm;
                     }
                     else if (providerId.Equals("claude", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Non-multicc single Claude provider
-                        Claude = vm;
+                        newClaude = vm;
                     }
                     else if (providerId.StartsWith("claude:", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Multicc profile
-                        ClaudeProfiles.Add(vm);
-                        firstClaude ??= vm;
+                        claudeProfileList.Add(vm);
+
+                        // Accumulate totals from raw reading data
+                        if (reading.Usage?.Consumption is { } c)
+                        {
+                            totalTodayCost += c.TodayCostUsd;
+                            totalTodayTokens += c.TodayTokens.TotalConsumed;
+
+                            // Compute this week from daily breakdown (Mon-Sun)
+                            foreach (var slice in c.DailyBreakdown)
+                            {
+                                if (slice.Period >= weekStart && slice.Period <= today)
+                                {
+                                    totalWeekCost += slice.ComputedCostUsd;
+                                    totalWeekTokens += slice.Tokens.TotalConsumed;
+                                }
+                            }
+                        }
                     }
                 }
 
-                // Sort ClaudeProfiles by session utilization descending (worst-first for glanceability)
-                if (ClaudeProfiles.Count > 0)
+                // Sort claude profiles by session utilization descending (worst-first)
+                claudeProfileList.Sort((a, b) => b.SessionProgress.CompareTo(a.SessionProgress));
+
+                var isMulticc = claudeProfileList.Count > 0;
+
+                // Build summary text
+                var summaryText = string.Empty;
+                if (isMulticc)
                 {
-                    var sorted = ClaudeProfiles.OrderByDescending(p => p.SessionProgress).ToList();
-                    ClaudeProfiles.Clear();
-                    foreach (var p in sorted)
-                    {
-                        ClaudeProfiles.Add(p);
-                    }
+                    newClaude = claudeProfileList[0]; // worst-case for backward compat
 
-                    // Set Claude property to the worst-case profile for backward compatibility
-                    Claude = sorted[0];
-                }
-
-                IsMulticcActive = ClaudeProfiles.Count > 0;
-
-                // Build summary text with health breakdown for multicc header
-                if (IsMulticcActive)
-                {
-                    var total = ClaudeProfiles.Count;
-                    var critical = ClaudeProfiles.Count(p => p.SessionProgress >= 0.95);
-                    var warning = ClaudeProfiles.Count(p => p.SessionProgress >= 0.80 && p.SessionProgress < 0.95);
-                    var healthy = total - critical - warning;
+                    var total = claudeProfileList.Count;
+                    var critical = claudeProfileList.Count(p => p.SessionProgress >= 0.95);
+                    var warning = claudeProfileList.Count(p => p.SessionProgress >= 0.80 && p.SessionProgress < 0.95);
 
                     if (critical > 0)
-                        MulticcSummary = $"{total} profiles  ·  {critical} at limit, {warning} warning";
+                        summaryText = $"{total} profiles  ·  {critical} at limit, {warning} warning";
                     else if (warning > 0)
-                        MulticcSummary = $"{total} profiles  ·  {warning} near limit";
+                        summaryText = $"{total} profiles  ·  {warning} near limit";
                     else
-                        MulticcSummary = $"{total} profiles  ·  All healthy";
+                        summaryText = $"{total} profiles  ·  All healthy";
+                }
+
+                // ── Apply to observable state (batched, single render frame) ──
+
+                // Set scalar properties before collection changes to prevent layout thrash.
+                // IsMulticcActive controls panel visibility — setting it first ensures the
+                // correct panel stays visible while collections are swapped.
+                if (newCodex is not null) Codex = newCodex;
+                if (newClaude is not null) Claude = newClaude;
+                IsMulticcActive = isMulticc;
+                MulticcSummary = summaryText;
+
+                // Multicc aggregate totals
+                if (isMulticc && (totalTodayTokens > 0 || totalWeekTokens > 0))
+                {
+                    MulticcTotalTodayCost = UsageFormatter.FormatCurrency(totalTodayCost);
+                    MulticcTotalTodayTokens = UsageFormatter.FormatTokenCount(totalTodayTokens);
+                    MulticcTotalWeekCost = UsageFormatter.FormatCurrency(totalWeekCost);
+                    MulticcTotalWeekTokens = UsageFormatter.FormatTokenCount(totalWeekTokens);
+                    HasMulticcTotals = true;
                 }
                 else
                 {
-                    MulticcSummary = string.Empty;
+                    HasMulticcTotals = false;
                 }
+
+                // Swap collection contents (single clear + add, no double-clear)
+                Providers.Clear();
+                foreach (var p in newProviders) Providers.Add(p);
+
+                ClaudeProfiles.Clear();
+                foreach (var p in claudeProfileList) ClaudeProfiles.Add(p);
             }
 
-            // Notify that SelectedProvider may have changed
+            // Only notify SelectedProvider if the reference actually changed
             OnPropertyChanged(nameof(SelectedProvider));
 
             LastUpdated = value.LastRefresh.ToLocalTime().ToString("g");

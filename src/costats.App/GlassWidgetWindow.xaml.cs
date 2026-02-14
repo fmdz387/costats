@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using costats.App.ViewModels;
 using costats.Application.Shell;
 
@@ -63,18 +64,20 @@ namespace costats.App
 
         private void UpdateWindowHeight()
         {
-            var vm = DataContext as PulseViewModel;
-            if (vm is null) return;
+            // Defer to Loaded priority so the height change renders in the same frame
+            // as panel visibility changes from MultiDataTrigger bindings.
+            // Without this, the window resizes before panels swap, causing a visible flash.
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+            {
+                var vm = DataContext as PulseViewModel;
+                if (vm is null) return;
 
-            if (vm.IsMulticcActive && vm.SelectedTabIndex == 1)
-            {
-                // Fixed height sized for 2 profiles; 3+ profiles scroll within
-                Height = 650.0;
-            }
-            else
-            {
-                Height = 580.0;
-            }
+                var targetHeight = (vm.IsMulticcActive && vm.SelectedTabIndex == 1) ? 720.0 : 580.0;
+                if (Math.Abs(Height - targetHeight) > 1.0)
+                {
+                    Height = targetHeight;
+                }
+            });
         }
 
         private void OnQuitClick(object sender, RoutedEventArgs e)
