@@ -6,6 +6,7 @@ using costats.App.Services.Updates;
 using costats.Application.Pulse;
 using costats.Application.Settings;
 using Microsoft.Win32;
+using System.Linq;
 
 namespace costats.App.ViewModels;
 
@@ -15,18 +16,26 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly AppSettings _settings;
     private readonly IPulseOrchestrator _pulseOrchestrator;
     private readonly StartupUpdateCoordinator? _updateCoordinator;
+    private readonly IMulticcDiscovery? _multiccDiscovery;
     private const string StartupRegistryKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
     private const string AppName = "costats";
 
-    public SettingsViewModel(ISettingsStore settingsStore, AppSettings settings, IPulseOrchestrator pulseOrchestrator, StartupUpdateCoordinator? updateCoordinator = null)
+    public SettingsViewModel(ISettingsStore settingsStore, AppSettings settings, IPulseOrchestrator pulseOrchestrator, StartupUpdateCoordinator? updateCoordinator = null, IMulticcDiscovery? multiccDiscovery = null)
     {
         _settingsStore = settingsStore;
         _settings = settings;
         _pulseOrchestrator = pulseOrchestrator;
         _updateCoordinator = updateCoordinator;
+        _multiccDiscovery = multiccDiscovery;
 
         refreshMinutes = settings.RefreshMinutes;
         startAtLogin = GetStartupRegistryValue();
+
+        multiccDetected = _multiccDiscovery?.IsDetected ?? false;
+        multiccEnabled = settings.MulticcEnabled;
+        multiccSelectedProfile = settings.MulticcSelectedProfile;
+        multiccProfileNames = _multiccDiscovery?.Profiles.Select(p => p.Name).ToList() ?? [];
+        multiccProfileCount = multiccProfileNames.Count;
     }
 
     [ObservableProperty]
@@ -40,6 +49,26 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private string updateStatusText = string.Empty;
+
+    [ObservableProperty]
+    private bool multiccDetected;
+
+    [ObservableProperty]
+    private bool multiccEnabled;
+
+    [ObservableProperty]
+    private string? multiccSelectedProfile;
+
+    [ObservableProperty]
+    private IReadOnlyList<string> multiccProfileNames = [];
+
+    [ObservableProperty]
+    private int multiccProfileCount;
+
+    [ObservableProperty]
+    private string multiccRestartMessage = string.Empty;
+
+    public bool IsMulticcAllProfiles => MulticcSelectedProfile is null;
 
     public string Version { get; } =
         (Assembly.GetEntryAssembly()?
@@ -82,6 +111,21 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         _settings.StartAtLogin = value;
         SetStartupRegistryValue(value);
+        _ = SaveSettingsAsync();
+    }
+
+    partial void OnMulticcEnabledChanged(bool value)
+    {
+        _settings.MulticcEnabled = value;
+        MulticcRestartMessage = "Restart required to apply changes.";
+        _ = SaveSettingsAsync();
+    }
+
+    partial void OnMulticcSelectedProfileChanged(string? value)
+    {
+        _settings.MulticcSelectedProfile = value;
+        MulticcRestartMessage = "Restart required to apply changes.";
+        OnPropertyChanged(nameof(IsMulticcAllProfiles));
         _ = SaveSettingsAsync();
     }
 

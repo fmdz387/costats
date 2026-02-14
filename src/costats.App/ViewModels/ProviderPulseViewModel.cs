@@ -75,6 +75,19 @@ public sealed partial class ProviderPulseViewModel : ObservableObject
     [ObservableProperty]
     private bool hasCostData;
 
+    // Utilization status for traffic-light indicators (multicc stacked view)
+    [ObservableProperty]
+    private string sessionStatusColor = "#10B981"; // Green default
+
+    [ObservableProperty]
+    private string weekStatusColor = "#10B981";
+
+    [ObservableProperty]
+    private string overallStatusText = "OK";
+
+    [ObservableProperty]
+    private string overallStatusColor = "#10B981";
+
     // Token tracking
     [ObservableProperty]
     private string todayTokensText = "--";
@@ -106,6 +119,13 @@ public sealed partial class ProviderPulseViewModel : ObservableObject
         PopulateWeekMetrics(vm, reading);
         PopulateExtraUsage(vm, reading);
         PopulateCostData(vm, reading);
+
+        // Set overall status based on the higher of session or week utilization
+        var sessionPercent = vm.SessionProgress * 100.0;
+        var weekPercent = vm.WeekProgress * 100.0;
+        var worstPercent = Math.Max(sessionPercent, weekPercent);
+        vm.OverallStatusColor = GetUtilizationColor(worstPercent);
+        vm.OverallStatusText = GetStatusText(worstPercent);
 
         // Legacy fields
         vm.SessionText = FormatUsageRatio(reading.Usage?.SessionUsed, reading.Usage?.SessionLimit);
@@ -145,6 +165,8 @@ public sealed partial class ProviderPulseViewModel : ObservableObject
                 vm.SessionPaceOnTop = pace.DeltaPercent < 0; // Behind = pace marker above actual
             }
         }
+
+        vm.SessionStatusColor = GetUtilizationColor(usedPercent);
     }
 
     private static void PopulateWeekMetrics(ProviderPulseViewModel vm, ProviderReading reading)
@@ -177,6 +199,8 @@ public sealed partial class ProviderPulseViewModel : ObservableObject
                 vm.WeekPaceOnTop = pace.DeltaPercent < 0;
             }
         }
+
+        vm.WeekStatusColor = GetUtilizationColor(usedPercent);
     }
 
     private static void PopulateExtraUsage(ProviderPulseViewModel vm, ProviderReading reading)
@@ -291,6 +315,28 @@ public sealed partial class ProviderPulseViewModel : ObservableObject
             ReadingSource.Api => "API",
             ReadingSource.Cli => "CLI",
             _ => "No data"
+        };
+    }
+
+    private static string GetUtilizationColor(double percent)
+    {
+        return percent switch
+        {
+            >= 95 => "#EF4444",  // Red - at/over limit
+            >= 80 => "#F97316",  // Orange - near limit
+            >= 50 => "#F59E0B",  // Amber - moderate
+            _     => "#10B981",  // Green - healthy
+        };
+    }
+
+    private static string GetStatusText(double percent)
+    {
+        return percent switch
+        {
+            >= 95 => "At limit",
+            >= 80 => "Near limit",
+            >= 50 => "Moderate",
+            _     => "OK",
         };
     }
 }

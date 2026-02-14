@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using costats.Application.Pulse;
@@ -44,6 +45,14 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
     [ObservableProperty]
     private bool isRefreshing = true; // Start true to show spinner on initial load
 
+    [ObservableProperty]
+    private bool isMulticcActive;
+
+    [ObservableProperty]
+    private string multiccSummary = string.Empty;
+
+    public ObservableCollection<ProviderPulseViewModel> ClaudeProfiles { get; } = new();
+
     /// <summary>
     /// Returns the currently selected provider based on tab index.
     /// </summary>
@@ -52,7 +61,20 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
     /// <summary>
     /// Returns the provider ID for the currently selected tab.
     /// </summary>
-    public string SelectedProviderId => SelectedTabIndex == 0 ? "codex" : "claude";
+    public string SelectedProviderId
+    {
+        get
+        {
+            if (SelectedTabIndex == 0)
+                return "codex";
+
+            // For multicc, return the first (worst-case) profile's ID for targeted refresh
+            if (IsMulticcActive && ClaudeProfiles.Count > 0)
+                return ClaudeProfiles[0].ProviderId;
+
+            return "claude";
+        }
+    }
 
     partial void OnSelectedTabIndexChanged(int value)
     {
@@ -111,19 +133,60 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
             if (value.Providers.Count > 0)
             {
                 Providers.Clear();
+                ClaudeProfiles.Clear();
+
+                ProviderPulseViewModel? firstClaude = null;
+
                 foreach (var (providerId, reading) in value.Providers)
                 {
                     var displayName = _displayNames.TryGetValue(providerId, out var name) ? name : providerId;
                     var vm = ProviderPulseViewModel.FromReading(reading, displayName);
                     Providers.Add(vm);
-                    if (providerId.Equals("claude", StringComparison.OrdinalIgnoreCase))
-                    {
-                        Claude = vm;
-                    }
-                    else if (providerId.Equals("codex", StringComparison.OrdinalIgnoreCase))
+
+                    if (providerId.Equals("codex", StringComparison.OrdinalIgnoreCase))
                     {
                         Codex = vm;
                     }
+                    else if (providerId.Equals("claude", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Non-multicc single Claude provider
+                        Claude = vm;
+                    }
+                    else if (providerId.StartsWith("claude:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Multicc profile
+                        ClaudeProfiles.Add(vm);
+                        firstClaude ??= vm;
+                    }
+                }
+
+                // Sort ClaudeProfiles by session utilization descending (worst-first for glanceability)
+                if (ClaudeProfiles.Count > 0)
+                {
+                    var sorted = ClaudeProfiles.OrderByDescending(p => p.SessionProgress).ToList();
+                    ClaudeProfiles.Clear();
+                    foreach (var p in sorted)
+                    {
+                        ClaudeProfiles.Add(p);
+                    }
+
+                    // Set Claude property to the worst-case profile for backward compatibility
+                    Claude = sorted[0];
+                }
+
+                IsMulticcActive = ClaudeProfiles.Count > 0;
+
+                // Build summary text for multicc header
+                if (IsMulticcActive)
+                {
+                    var nearLimit = ClaudeProfiles.Count(p => p.SessionProgress >= 0.80);
+                    MulticcSummary = nearLimit > 0
+                        ? $"{ClaudeProfiles.Count} profiles | {nearLimit} near limit"
+                        : $"{ClaudeProfiles.Count} profiles | All healthy";
+                }
+                else
+                {
+                    MulticcSummary = string.Empty;
                 }
             }
 
