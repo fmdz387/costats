@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:costats.App"
+        xmlns:views="clr-namespace:costats.App.Views"
         Title="costats"
         Width="360"
         Height="580"
@@ -158,8 +159,22 @@
             <!-- Divider -->
             <Border Grid.Row="1" Height="1" Background="{StaticResource DividerBrush}" Margin="0,0,0,16" />
 
-            <!-- Content area -->
+            <!-- Content area: Single provider view (shown when NOT multicc active on Claude tab) -->
             <StackPanel Grid.Row="2" DataContext="{Binding SelectedProvider}">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Setter Property="Visibility" Value="Visible" />
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding DataContext.SelectedTabIndex, RelativeSource={RelativeSource AncestorType=Window}}" Value="1" />
+                                    <Condition Binding="{Binding DataContext.IsMulticcActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
 
                 <!-- Provider header -->
                 <DockPanel Margin="0,0,0,14">
@@ -264,6 +279,24 @@
                 </StackPanel>
 
             </StackPanel>
+
+            <!-- Multicc stacked view (shown when multicc active AND Claude tab selected) -->
+            <views:ClaudeMultiPanelView Grid.Row="2">
+                <views:ClaudeMultiPanelView.Style>
+                    <Style TargetType="views:ClaudeMultiPanelView">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding SelectedTabIndex}" Value="1" />
+                                    <Condition Binding="{Binding IsMulticcActive}" Value="True" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </views:ClaudeMultiPanelView.Style>
+            </views:ClaudeMultiPanelView>
 
             <!-- Footer note -->
             <StackPanel Grid.Row="3" Margin="0,20,0,0">

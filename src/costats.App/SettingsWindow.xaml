@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:costats.App"
         Title="Settings"
         Width="360"
-        Height="430"
+        Height="540"
         WindowStyle="None"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -167,6 +167,71 @@
                 </DockPanel>
                 <TextBlock Text="How often costats polls for usage data in the background."
                            FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="0,0,0,0" />
+
+                <!-- Divider -->
+                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,16,0,16" />
+
+                <!-- Claude Code / Multicc Section -->
+                <TextBlock Text="CLAUDE CODE" FontSize="10" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />
+
+                <!-- Shown when multicc is detected -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding MulticcDetected}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <CheckBox IsChecked="{Binding MulticcEnabled}" Style="{StaticResource SettingsCheckBox}" Margin="0,0,0,6">
+                        <TextBlock Text="Use multicc profiles" FontSize="12"
+                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                    </CheckBox>
+                    <TextBlock Text="Automatically detect and display all multicc profiles in the Claude tab."
+                               FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="30,0,0,12" />
+
+                    <!-- Profile count info (visible when multicc enabled) -->
+                    <StackPanel>
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding MulticcEnabled}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <TextBlock FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="0,0,0,4">
+                            <Run Text="Profiles found:" />
+                            <Run Text="{Binding MulticcProfileCount, Mode=OneWay}" FontWeight="SemiBold" />
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Restart message -->
+                    <TextBlock Text="{Binding MulticcRestartMessage}" FontSize="11" Foreground="#F97316" Margin="0,8,0,0"
+                               Visibility="{Binding MulticcRestartMessage, Converter={x:Static local:StringToVisibilityConverter.Instance}}" />
+                </StackPanel>
+
+                <!-- Shown when multicc is NOT detected -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding MulticcDetected}" Value="False">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Text="multicc not detected. Install multicc to manage multiple Claude Code accounts."
+                               FontSize="11" Foreground="{StaticResource TextFaintBrush}" TextWrapping="Wrap" />
+                </StackPanel>
 
                 <!-- Divider -->
                 <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,16,0,16" />

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -18,6 +19,9 @@ namespace costats.App
             SourceInitialized += OnSourceInitialized;
             MouseLeftButtonDown += OnMouseLeftButtonDown;
             Deactivated += OnDeactivated;
+
+            // Subscribe to ViewModel property changes for dynamic height
+            viewModel.PropertyChanged += OnViewModelPropertyChanged;
         }
 
         private void OnSourceInitialized(object? sender, EventArgs e)
@@ -46,6 +50,36 @@ namespace costats.App
         {
             // Hide window when it loses focus (like a popup)
             Hide();
+        }
+
+        private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName is nameof(PulseViewModel.IsMulticcActive) or
+                nameof(PulseViewModel.SelectedTabIndex))
+            {
+                UpdateWindowHeight();
+            }
+        }
+
+        private void UpdateWindowHeight()
+        {
+            var vm = DataContext as PulseViewModel;
+            if (vm is null) return;
+
+            if (vm.IsMulticcActive && vm.SelectedTabIndex == 1)
+            {
+                var profileCount = vm.ClaudeProfiles.Count;
+                const double baseHeight = 280.0;   // Header + tabs + summary bar
+                const double summaryBarHeight = 40.0;
+                const double perCardHeight = 90.0;
+                const double footerHeight = 80.0;
+                var totalHeight = baseHeight + summaryBarHeight + (profileCount * perCardHeight) + footerHeight;
+                Height = Math.Min(Math.Max(totalHeight, 580.0), 900.0);
+            }
+            else
+            {
+                Height = 580.0;
+            }
         }
 
         private void OnQuitClick(object sender, RoutedEventArgs e)
