@@ -12,12 +12,7 @@ public sealed class CopilotUsageFetcher : IDisposable
     private const string EditorVersion = "vscode/1.96.2";
     private const string EditorPluginVersion = "copilot-chat/0.26.7";
     private const string ApiVersion = "2025-04-01";
-    private static readonly string[] UsagePaths =
-    [
-        "copilot_internal/user",
-        "user/copilot/usage",
-        "copilot/usage"
-    ];
+    private const string UsagePath = "copilot_internal/user";
     private static readonly TimeSpan[] RetryDelays =
     [
         TimeSpan.FromMilliseconds(250),
@@ -52,18 +47,7 @@ public sealed class CopilotUsageFetcher : IDisposable
 
         var trimmedToken = token.Trim();
 
-        foreach (var path in UsagePaths)
-        {
-            var result = await FetchFromPathAsync(path, trimmedToken, cancellationToken).ConfigureAwait(false);
-            if (result.Status == CopilotFetchStatus.NotFound)
-            {
-                continue;
-            }
-
-            return result;
-        }
-
-        return CopilotUsageFetchResult.NotFound();
+        return await FetchFromPathAsync(UsagePath, trimmedToken, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<CopilotUsageFetchResult> FetchFromPathAsync(string path, string token, CancellationToken cancellationToken)
