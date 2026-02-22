@@ -84,8 +84,8 @@ public sealed class CopilotPersonalSource : ISignalSource
                     Source: ReadingSource.Api);
             }
 
-            var sessionResetsAt = sessionPercent is not null ? CalculateNextDailyReset(now) : null;
-            var weekResetsAt = weekPercent is not null ? CalculateWeeklyReset(now) : null;
+            DateTimeOffset? sessionResetsAt = sessionPercent is not null ? CalculateNextDailyReset(now) : null;
+            DateTimeOffset? weekResetsAt = weekPercent is not null ? CalculateWeeklyReset(now) : null;
 
             var usage = new UsagePulse(
                 ProviderId: Profile.ProviderId,
