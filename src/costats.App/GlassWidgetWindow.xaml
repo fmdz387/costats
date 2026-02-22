@@ -299,7 +299,18 @@
 
                 <!-- Session section -->
                 <StackPanel Margin="0,0,0,16">
-                    <TextBlock Text="Session" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8" />
+                    <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="Session" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ProviderId}" Value="copilot">
+                                        <Setter Property="Text" Value="Premium requests" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                     <ProgressBar Style="{StaticResource UsageProgressBar}" Value="{Binding SessionProgress}" Maximum="1" Foreground="{StaticResource SessionAccent}" />
                     <DockPanel Margin="0,8,0,0">
                         <TextBlock Text="{Binding SessionUsageLabel}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" DockPanel.Dock="Left" />
@@ -309,7 +320,18 @@
 
                 <!-- Weekly section -->
                 <StackPanel Margin="0,0,0,16">
-                    <TextBlock Text="Weekly" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8" />
+                    <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="Weekly" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ProviderId}" Value="copilot">
+                                        <Setter Property="Text" Value="Chat requests" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                     <ProgressBar Style="{StaticResource UsageProgressBar}" Value="{Binding WeekProgress}" Maximum="1" Foreground="{StaticResource WeeklyAccent}" />
                     <DockPanel Margin="0,8,0,0">
                         <TextBlock Text="{Binding WeekUsageLabel}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" DockPanel.Dock="Left" />
