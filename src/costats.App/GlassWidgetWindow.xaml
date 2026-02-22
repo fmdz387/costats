@@ -316,6 +316,22 @@
                         <TextBlock Text="{Binding SessionUsageLabel}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" DockPanel.Dock="Left" />
                         <TextBlock Text="{Binding SessionResetText}" FontSize="12" Foreground="{StaticResource TextMutedBrush}" DockPanel.Dock="Right" HorizontalAlignment="Right" />
                     </DockPanel>
+                    <TextBlock Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource TextFaintBrush}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ProviderId}" Value="copilot">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                        <Hyperlink NavigateUri="https://github.com/settings/copilot/features"
+                                   RequestNavigate="OnCopilotUsageLinkNavigate">
+                            View Copilot usage on GitHub
+                        </Hyperlink>
+                    </TextBlock>
                 </StackPanel>
 
                 <!-- Weekly section -->
