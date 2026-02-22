@@ -21,4 +21,9 @@ public sealed class AppSettings
     /// Override path for multicc config directory. Null means auto-detect (~/.multicc or $MULTICC_DIR).
     /// </summary>
     public string? MulticcConfigPath { get; set; }
+
+    /// <summary>
+    /// Whether the GitHub Copilot personal usage provider is enabled.
+    /// </summary>
+    public bool CopilotEnabled { get; set; } = false;
 }

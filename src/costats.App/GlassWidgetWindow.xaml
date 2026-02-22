@@ -35,6 +35,7 @@
         <!-- Accent colors -->
         <SolidColorBrush x:Key="CodexAccent" Color="#10B981" />
         <SolidColorBrush x:Key="ClaudeAccent" Color="#F97316" />
+        <SolidColorBrush x:Key="CopilotAccent" Color="#6E40C9" />
         <SolidColorBrush x:Key="SessionAccent" Color="#F59E0B" />
         <SolidColorBrush x:Key="WeeklyAccent" Color="#8B5CF6" />
         <SolidColorBrush x:Key="CostTodayAccent" Color="#065F46" />
@@ -45,6 +46,8 @@
 
         <!-- Claude icon (Anthropic logo) -->
         <Geometry x:Key="ClaudeIconPath">M25.71 63.22L41.44 54.39L41.7 53.62L41.44 53.2H40.67L38.04 53.04L29.05 52.79L21.26 52.47L13.71 52.06L11.81 51.66L10.03 49.31L10.21 48.14L11.81 47.07L14.1 47.27L19.16 47.61L26.75 48.14L32.25 48.46L40.41 49.31H41.7L41.88 48.79L41.44 48.46L41.1 48.14L33.24 42.82L24.74 37.19L20.29 33.95L17.88 32.31L16.67 30.77L16.14 27.41L18.33 25.01L21.26 25.21L22.01 25.41L24.99 27.7L31.34 32.62L39.64 38.73L40.85 39.74L41.34 39.4L41.4 39.15L40.85 38.24L36.34 30.09L31.52 21.79L29.38 18.35L28.81 16.28C28.61 15.43 28.47 14.73 28.47 13.85L30.96 10.48L32.33 10.03L35.65 10.48L37.05 11.69L39.11 16.41L42.45 23.83L47.63 33.93L49.15 36.93L49.96 39.7L50.26 40.55H50.79V40.06L51.21 34.38L52 27.39L52.77 18.41L53.04 15.88L54.29 12.84L56.78 11.2L58.72 12.14L60.32 14.42L60.1 15.9L59.15 22.07L57.29 31.75L56.07 38.22H56.78L57.59 37.41L60.87 33.06L66.37 26.18L68.8 23.45L71.63 20.43L73.46 19H76.9L79.43 22.76L78.29 26.65L74.75 31.14L71.82 34.94L67.61 40.61L64.98 45.14L65.22 45.51L65.85 45.45L75.36 43.42L80.5 42.49L86.63 41.44L89.4 42.73L89.71 44.05L88.61 46.74L82.06 48.36L74.37 49.9L62.91 52.61L62.77 52.71L62.93 52.91L68.09 53.4L70.3 53.52H75.7L85.76 54.27L88.39 56.01L89.97 58.14L89.71 59.75L85.66 61.82L80.19 60.52L67.45 57.49L63.07 56.4H62.47V56.76L66.11 60.32L72.79 66.35L81.15 74.12L81.57 76.05L80.5 77.56L79.36 77.4L72.02 71.88L69.19 69.39L62.77 63.98H62.35V64.55L63.82 66.72L71.63 78.45L72.04 82.06L71.47 83.23L69.45 83.94L67.22 83.53L62.65 77.12L57.93 69.89L54.13 63.42L53.66 63.68L51.42 87.87L50.36 89.1L47.94 90.03L45.91 88.49L44.84 86L45.91 81.09L47.21 74.67L48.26 69.57L49.21 63.24L49.78 61.13L49.74 60.99L49.27 61.05L44.5 67.61L37.23 77.42L31.48 83.57L30.11 84.12L27.72 82.89L27.94 80.68L29.28 78.72L37.23 68.6L42.03 62.32L45.12 58.7L45.1 58.18H44.92L23.79 71.9L20.03 72.38L18.41 70.87L18.61 68.38L19.38 67.57L25.73 63.2L25.71 63.22Z</Geometry>
+        <!-- Copilot icon (simple circle) -->
+        <Geometry x:Key="CopilotIconPath">M12 2A10 10 0 1 1 11.999 2Z</Geometry>
         <!-- Refresh icon (elegant outline arrows) -->
         <Geometry x:Key="RefreshIconPath">M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z</Geometry>
 
@@ -91,6 +94,7 @@
             <!-- Tab bar with icons -->
             <Grid Grid.Row="0" Margin="0,0,0,16">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
@@ -140,6 +144,36 @@
                                                HorizontalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,6,0,0" />
                                     <Border x:Name="TabIndicator" Height="3" Width="20" CornerRadius="1.5"
                                             Background="{StaticResource ClaudeAccent}" Margin="0,6,0,0" Opacity="0" />
+                                </StackPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="TabText" Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                                    <Setter TargetName="TabIndicator" Property="Opacity" Value="1" />
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="TabBorder" Property="Background" Value="#25A0A0C0" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </RadioButton.Template>
+                </RadioButton>
+
+                <!-- Copilot Tab -->
+                <RadioButton Grid.Column="2" GroupName="ProviderTabs"
+                             IsChecked="{Binding SelectedTabIndex, Converter={x:Static local:IndexToBoolConverter.Instance}, ConverterParameter=2}"
+                             Cursor="Hand" Margin="6,0,0,0">
+                    <RadioButton.Template>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border x:Name="TabBorder" Background="Transparent" CornerRadius="10" Padding="12,8">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <Path x:Name="TabIcon" Data="{StaticResource CopilotIconPath}"
+                                          Width="20" Height="20" Stretch="Uniform"
+                                          Fill="{StaticResource CopilotAccent}" HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="TabText" Text="Copilot" FontSize="12" FontWeight="Medium"
+                                               HorizontalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,6,0,0" />
+                                    <Border x:Name="TabIndicator" Height="3" Width="20" CornerRadius="1.5"
+                                            Background="{StaticResource CopilotAccent}" Margin="0,6,0,0" Opacity="0" />
                                 </StackPanel>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -208,6 +242,15 @@
                                             </Setter.Value>
                                         </Setter>
                                     </DataTrigger>
+                                    <!-- Copilot: purple -->
+                                    <DataTrigger Binding="{Binding ProviderId}" Value="copilot">
+                                        <Setter Property="BorderBrush" Value="{StaticResource CopilotAccent}" />
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <SolidColorBrush Color="#6E40C9" Opacity="0.12" />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Border.Style>
@@ -220,6 +263,10 @@
                                         <!-- Claude: dark orange for contrast -->
                                         <DataTrigger Binding="{Binding ProviderId}" Value="claude">
                                             <Setter Property="Foreground" Value="#C2410C" />
+                                        </DataTrigger>
+                                        <!-- Copilot: dark purple for contrast -->
+                                        <DataTrigger Binding="{Binding ProviderId}" Value="copilot">
+                                            <Setter Property="Foreground" Value="#4C1D95" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -345,6 +392,8 @@
                         <Run FontWeight="SemiBold" Foreground="{StaticResource CodexAccent}">Codex</Run><Run> - OpenAI's AI coding assistant</Run>
                         <LineBreak />
                         <Run FontWeight="SemiBold" Foreground="{StaticResource ClaudeAccent}">Claude</Run><Run> - Anthropic's Claude Code CLI</Run>
+                        <LineBreak />
+                        <Run FontWeight="SemiBold" Foreground="{StaticResource CopilotAccent}">Copilot</Run><Run> - GitHub's AI coding assistant (experimental)</Run>
                     </TextBlock>
                 </DockPanel>
             </StackPanel>

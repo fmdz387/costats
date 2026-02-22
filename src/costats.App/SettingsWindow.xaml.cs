@@ -37,5 +37,15 @@ namespace costats.App
         {
             Hide();
         }
+
+        private async void OnSaveCopilotTokenClick(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is SettingsViewModel viewModel)
+            {
+                var token = CopilotTokenBox.Password;
+                await viewModel.SaveCopilotTokenAsync(token);
+                CopilotTokenBox.Clear();
+            }
+        }
     }
 }
