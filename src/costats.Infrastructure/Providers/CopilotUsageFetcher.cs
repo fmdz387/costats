@@ -8,8 +8,13 @@ namespace costats.Infrastructure.Providers;
 public sealed class CopilotUsageFetcher : IDisposable
 {
     private const string BaseUrl = "https://api.github.com/";
+    private const string CopilotUserAgent = "GitHubCopilotChat/0.26.7";
+    private const string EditorVersion = "vscode/1.96.2";
+    private const string EditorPluginVersion = "copilot-chat/0.26.7";
+    private const string ApiVersion = "2025-04-01";
     private static readonly string[] UsagePaths =
     [
+        "copilot_internal/user",
         "user/copilot/usage",
         "copilot/usage"
     ];
@@ -30,10 +35,12 @@ public sealed class CopilotUsageFetcher : IDisposable
             BaseAddress = new Uri(BaseUrl),
             Timeout = TimeSpan.FromSeconds(10)
         };
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("costats");
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(CopilotUserAgent);
+        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.copilot-preview+json"));
-        _httpClient.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+        _httpClient.DefaultRequestHeaders.Add("Editor-Version", EditorVersion);
+        _httpClient.DefaultRequestHeaders.Add("Editor-Plugin-Version", EditorPluginVersion);
+        _httpClient.DefaultRequestHeaders.Add("X-GitHub-Api-Version", ApiVersion);
     }
 
     public async Task<CopilotUsageFetchResult> FetchAsync(string? token, CancellationToken cancellationToken)
@@ -66,7 +73,7 @@ public sealed class CopilotUsageFetcher : IDisposable
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, path);
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                request.Headers.Authorization = new AuthenticationHeaderValue("token", token);
 
                 var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
@@ -138,6 +145,17 @@ public sealed class CopilotUsageFetcher : IDisposable
             long? todaySuggested = null;
             long? weekAccepted = null;
             long? weekSuggested = null;
+            double? sessionPercent = null;
+            double? weekPercent = null;
+            DateTimeOffset? quotaResetAt = null;
+
+            if (TryReadQuotaSnapshots(root, out var premiumRemaining, out var chatRemaining))
+            {
+                sessionPercent = ConvertRemainingToUsed(premiumRemaining);
+                weekPercent = ConvertRemainingToUsed(chatRemaining);
+            }
+
+            quotaResetAt = ReadDateTime(root, "quota_reset_date", "quotaResetDate", "reset_at", "resetAt");
 
             var daily = ExtractDailyUsage(root);
             foreach (var day in daily)
@@ -175,7 +193,7 @@ public sealed class CopilotUsageFetcher : IDisposable
                 weekSuggested ??= ReadLong(summaryElement, "week_suggested", "week_lines_suggested", "week_suggestions");
             }
 
-            var plan = ReadString(root, "plan", "subscription", "copilot_plan", "plan_type");
+            var plan = ReadString(root, "copilotPlan", "copilot_plan", "plan", "subscription", "plan_type");
             var login = ReadString(root, "login", "username");
 
             if (root.TryGetProperty("user", out var userElement) && userElement.ValueKind == JsonValueKind.Object)
@@ -184,18 +202,68 @@ public sealed class CopilotUsageFetcher : IDisposable
             }
 
             return new CopilotUsagePayload(
+                sessionPercent,
+                weekPercent,
                 todayAccepted,
                 todaySuggested,
                 weekAccepted,
                 weekSuggested,
                 plan,
                 login,
+                quotaResetAt,
                 now);
         }
         catch (JsonException)
         {
             return null;
         }
+    }
+
+    private static bool TryReadQuotaSnapshots(JsonElement root, out double? premiumRemaining, out double? chatRemaining)
+    {
+        premiumRemaining = null;
+        chatRemaining = null;
+
+        if (!TryGetNestedObject(root, out var snapshots, "quota_snapshots", "quotaSnapshots"))
+        {
+            return false;
+        }
+
+        if (TryGetNestedObject(snapshots, out var premium, "premium_interactions", "premiumInteractions"))
+        {
+            premiumRemaining = ReadDouble(premium, "percent_remaining", "percentRemaining");
+        }
+
+        if (TryGetNestedObject(snapshots, out var chat, "chat"))
+        {
+            chatRemaining = ReadDouble(chat, "percent_remaining", "percentRemaining");
+        }
+
+        return premiumRemaining is not null || chatRemaining is not null;
+    }
+
+    private static bool TryGetNestedObject(JsonElement element, out JsonElement nested, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (element.TryGetProperty(name, out nested) && nested.ValueKind == JsonValueKind.Object)
+            {
+                return true;
+            }
+        }
+
+        nested = default;
+        return false;
+    }
+
+    private static double? ConvertRemainingToUsed(double? remaining)
+    {
+        if (remaining is null)
+        {
+            return null;
+        }
+
+        return Math.Clamp(100.0 - remaining.Value, 0, 100);
     }
 
     private static IReadOnlyList<CopilotUsageDay> ExtractDailyUsage(JsonElement root)
@@ -337,6 +405,47 @@ public sealed class CopilotUsageFetcher : IDisposable
         return null;
     }
 
+    private static double? ReadDouble(JsonElement element, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (!element.TryGetProperty(name, out var value))
+            {
+                continue;
+            }
+
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number))
+            {
+                return number;
+            }
+
+            if (value.ValueKind == JsonValueKind.String && double.TryParse(value.GetString(), out var parsed))
+            {
+                return parsed;
+            }
+        }
+
+        return null;
+    }
+
+    private static DateTimeOffset? ReadDateTime(JsonElement element, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (!element.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            if (DateTimeOffset.TryParse(value.GetString(), out var timestamp))
+            {
+                return timestamp;
+            }
+        }
+
+        return null;
+    }
+
     private static long? SumValues(long? first, long? second)
     {
         if (first is null) return second;
@@ -395,12 +504,15 @@ public sealed class CopilotUsageFetcher : IDisposable
 }
 
 public sealed record CopilotUsagePayload(
+    double? SessionUsedPercent,
+    double? WeekUsedPercent,
     long? TodayAccepted,
     long? TodaySuggested,
     long? WeekAccepted,
     long? WeekSuggested,
     string? Plan,
     string? Login,
+    DateTimeOffset? QuotaResetAt,
     DateTimeOffset FetchedAt);
 
 public enum CopilotFetchStatus

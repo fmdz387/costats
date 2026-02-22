@@ -70,8 +70,10 @@ public sealed class CopilotPersonalSource : ISignalSource
                     Source: ReadingSource.Api);
             }
 
-            var sessionPercent = CalculatePercent(result.Payload.TodayAccepted, result.Payload.TodaySuggested);
-            var weekPercent = CalculatePercent(result.Payload.WeekAccepted, result.Payload.WeekSuggested);
+            var sessionPercent = result.Payload.SessionUsedPercent
+                ?? CalculatePercent(result.Payload.TodayAccepted, result.Payload.TodaySuggested);
+            var weekPercent = result.Payload.WeekUsedPercent
+                ?? CalculatePercent(result.Payload.WeekAccepted, result.Payload.WeekSuggested);
 
             if (sessionPercent is null && weekPercent is null)
             {
@@ -84,8 +86,13 @@ public sealed class CopilotPersonalSource : ISignalSource
                     Source: ReadingSource.Api);
             }
 
-            DateTimeOffset? sessionResetsAt = sessionPercent is not null ? CalculateNextDailyReset(now) : null;
-            DateTimeOffset? weekResetsAt = weekPercent is not null ? CalculateWeeklyReset(now) : null;
+            var resetAt = result.Payload.QuotaResetAt;
+            DateTimeOffset? sessionResetsAt = sessionPercent is not null
+                ? resetAt ?? CalculateNextDailyReset(now)
+                : null;
+            DateTimeOffset? weekResetsAt = weekPercent is not null
+                ? resetAt ?? CalculateWeeklyReset(now)
+                : null;
 
             var usage = new UsagePulse(
                 ProviderId: Profile.ProviderId,
