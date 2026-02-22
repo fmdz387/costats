@@ -44,7 +44,6 @@ namespace costats.App
             {
                 var token = CopilotTokenBox.Password;
                 await viewModel.SaveCopilotTokenAsync(token);
-                CopilotTokenBox.Clear();
             }
         }
     }

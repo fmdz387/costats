@@ -8,7 +8,11 @@ namespace costats.Infrastructure.Providers;
 public sealed class CopilotUsageFetcher : IDisposable
 {
     private const string BaseUrl = "https://api.github.com/";
-    private const string UsagePath = "user/copilot/usage";
+    private static readonly string[] UsagePaths =
+    [
+        "user/copilot/usage",
+        "copilot/usage"
+    ];
     private static readonly TimeSpan[] RetryDelays =
     [
         TimeSpan.FromMilliseconds(250),
@@ -40,12 +44,28 @@ public sealed class CopilotUsageFetcher : IDisposable
 
         var trimmedToken = token.Trim();
 
+        foreach (var path in UsagePaths)
+        {
+            var result = await FetchFromPathAsync(path, trimmedToken, cancellationToken).ConfigureAwait(false);
+            if (result.Status == CopilotFetchStatus.NotFound)
+            {
+                continue;
+            }
+
+            return result;
+        }
+
+        return CopilotUsageFetchResult.NotFound();
+    }
+
+    private async Task<CopilotUsageFetchResult> FetchFromPathAsync(string path, string token, CancellationToken cancellationToken)
+    {
         for (var attempt = 0; attempt <= RetryDelays.Length; attempt++)
         {
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, UsagePath);
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", trimmedToken);
+                using var request = new HttpRequestMessage(HttpMethod.Get, path);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
 

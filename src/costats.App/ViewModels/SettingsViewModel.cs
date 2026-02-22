@@ -7,6 +7,7 @@ using costats.App.Services.Updates;
 using costats.Application.Pulse;
 using costats.Application.Security;
 using costats.Application.Settings;
+using costats.Core.Pulse;
 using costats.Infrastructure.Providers;
 using Microsoft.Win32;
 using System.Linq;
@@ -159,6 +160,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         _settings.CopilotEnabled = value;
         _ = SaveSettingsAsync();
+        _ = _pulseOrchestrator.RefreshOnceAsync(RefreshTrigger.Silent, CancellationToken.None);
     }
 
     public async Task SaveCopilotTokenAsync(string token)

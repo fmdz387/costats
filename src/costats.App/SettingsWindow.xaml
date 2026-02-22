@@ -168,42 +168,6 @@
                 <TextBlock Text="How often costats polls for usage data in the background."
                            FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="0,0,0,0" />
 
-                <!-- Divider -->
-                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,16,0,16" />
-
-                <!-- Copilot Section -->
-                <TextBlock Text="COPILOT (EXPERIMENTAL)" FontSize="10" FontWeight="SemiBold"
-                           Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />
-
-                <CheckBox IsChecked="{Binding CopilotEnabled}" Style="{StaticResource SettingsCheckBox}" Margin="0,0,0,6">
-                    <TextBlock Text="Enable GitHub Copilot usage" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
-                </CheckBox>
-                <TextBlock Text="Uses an unofficial GitHub endpoint and may break without notice."
-                           FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="30,0,0,12" TextWrapping="Wrap" />
-
-                <TextBlock Text="Personal access token" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
-                <PasswordBox x:Name="CopilotTokenBox" Margin="0,6,0,8" Height="28"
-                             IsEnabled="{Binding IsCopilotTokenBusy, Converter={x:Static local:BoolNegationConverter.Instance}}" />
-
-                <DockPanel Margin="0,0,0,6">
-                    <Button Content="Save token"
-                            Click="OnSaveCopilotTokenClick"
-                            IsEnabled="{Binding IsCopilotTokenBusy, Converter={x:Static local:BoolNegationConverter.Instance}}"
-                            Style="{StaticResource SettingsButton}"
-                            DockPanel.Dock="Left" />
-                    <Button Content="Clear token"
-                            Command="{Binding ClearCopilotTokenCommand}"
-                            IsEnabled="{Binding IsCopilotTokenBusy, Converter={x:Static local:BoolNegationConverter.Instance}}"
-                            Style="{StaticResource SettingsButton}"
-                            DockPanel.Dock="Right" />
-                </DockPanel>
-
-                <TextBlock Text="{Binding CopilotTokenStatus}" FontSize="11" Foreground="{StaticResource TextFaintBrush}"
-                           Visibility="{Binding CopilotTokenStatus, Converter={x:Static local:StringToVisibilityConverter.Instance}}" />
-
-                <!-- Divider -->
-                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,16,0,16" />
-
                 <!-- Claude Code / Multicc Section -->
                 <TextBlock Text="CLAUDE CODE" FontSize="10" FontWeight="SemiBold"
                            Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />
@@ -265,6 +229,39 @@
                     <TextBlock Text="multicc not detected. Install multicc to manage multiple Claude Code accounts."
                                FontSize="11" Foreground="{StaticResource TextFaintBrush}" TextWrapping="Wrap" />
                 </StackPanel>
+
+                <!-- Divider -->
+                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,16,0,16" />
+
+                <!-- Copilot Section -->
+                <TextBlock Text="COPILOT (EXPERIMENTAL)" FontSize="10" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />
+
+                <CheckBox IsChecked="{Binding CopilotEnabled}" Style="{StaticResource SettingsCheckBox}" Margin="0,0,0,6">
+                    <TextBlock Text="Enable GitHub Copilot usage" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
+                </CheckBox>
+                <TextBlock Text="Uses an unofficial GitHub endpoint and may break without notice."
+                           FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="30,0,0,12" TextWrapping="Wrap" />
+
+                <TextBlock Text="Personal access token" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
+                <PasswordBox x:Name="CopilotTokenBox" Margin="0,6,0,8" Height="28"
+                             IsEnabled="{Binding IsCopilotTokenBusy, Converter={x:Static local:BoolNegationConverter.Instance}}" />
+
+                <DockPanel Margin="0,0,0,6">
+                    <Button Content="Save token"
+                            Click="OnSaveCopilotTokenClick"
+                            IsEnabled="{Binding IsCopilotTokenBusy, Converter={x:Static local:BoolNegationConverter.Instance}}"
+                            Style="{StaticResource SettingsButton}"
+                            DockPanel.Dock="Left" />
+                    <Button Content="Clear token"
+                            Command="{Binding ClearCopilotTokenCommand}"
+                            IsEnabled="{Binding IsCopilotTokenBusy, Converter={x:Static local:BoolNegationConverter.Instance}}"
+                            Style="{StaticResource SettingsButton}"
+                            DockPanel.Dock="Right" />
+                </DockPanel>
+
+                <TextBlock Text="{Binding CopilotTokenStatus}" FontSize="11" Foreground="{StaticResource TextFaintBrush}"
+                           Visibility="{Binding CopilotTokenStatus, Converter={x:Static local:StringToVisibilityConverter.Instance}}" />
 
                 <!-- Divider -->
                 <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,16,0,16" />

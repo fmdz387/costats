@@ -96,7 +96,18 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition>
+                        <ColumnDefinition.Style>
+                            <Style TargetType="ColumnDefinition">
+                                <Setter Property="Width" Value="*" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsCopilotEnabled}" Value="False">
+                                        <Setter Property="Width" Value="0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ColumnDefinition.Style>
+                    </ColumnDefinition>
                 </Grid.ColumnDefinitions>
 
                 <!-- Codex Tab -->
@@ -162,7 +173,8 @@
                 <!-- Copilot Tab -->
                 <RadioButton Grid.Column="2" GroupName="ProviderTabs"
                              IsChecked="{Binding SelectedTabIndex, Converter={x:Static local:IndexToBoolConverter.Instance}, ConverterParameter=2}"
-                             Cursor="Hand" Margin="6,0,0,0">
+                             Cursor="Hand" Margin="6,0,0,0"
+                             Visibility="{Binding IsCopilotEnabled, Converter={StaticResource BoolToVisibilityConverter}}">
                     <RadioButton.Template>
                         <ControlTemplate TargetType="RadioButton">
                             <Border x:Name="TabBorder" Background="Transparent" CornerRadius="10" Padding="12,8">

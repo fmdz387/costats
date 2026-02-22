@@ -3,6 +3,7 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using costats.Application.Pulse;
+using costats.Application.Settings;
 using costats.Core.Pulse;
 
 namespace costats.App.ViewModels;
@@ -10,12 +11,15 @@ namespace costats.App.ViewModels;
 public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseState>, IDisposable
 {
     private readonly IPulseOrchestrator _orchestrator;
+    private readonly AppSettings _settings;
     private readonly IDisposable _subscription;
     private readonly Dictionary<string, string> _displayNames;
 
-    public PulseViewModel(IPulseOrchestrator orchestrator, IEnumerable<ISignalSource> sources)
+    public PulseViewModel(IPulseOrchestrator orchestrator, AppSettings settings, IEnumerable<ISignalSource> sources)
     {
         _orchestrator = orchestrator;
+        _settings = settings;
+        isCopilotEnabled = settings.CopilotEnabled;
         _displayNames = sources
             .Select(source => source.Profile)
             .GroupBy(profile => profile.ProviderId)
@@ -52,6 +56,9 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
     private bool isMulticcActive;
 
     [ObservableProperty]
+    private bool isCopilotEnabled;
+
+    [ObservableProperty]
     private string multiccSummary = string.Empty;
 
     // Aggregate cost/token totals across all multicc profiles
@@ -79,7 +86,7 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
     {
         0 => Codex,
         1 => Claude,
-        _ => Copilot
+        _ => IsCopilotEnabled ? Copilot : Codex
     };
 
     /// <summary>
@@ -101,7 +108,7 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
                 return "claude";
             }
 
-            return "copilot";
+            return IsCopilotEnabled ? "copilot" : "codex";
         }
     }
 
@@ -153,6 +160,12 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
         // This allows window deactivation to work even during data updates
         System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
         {
+            IsCopilotEnabled = _settings.CopilotEnabled;
+            if (!IsCopilotEnabled && SelectedTabIndex > 1)
+            {
+                SelectedTabIndex = 0;
+            }
+
             IsRefreshing = value.IsRefreshing;
 
             // Only update provider data if we have providers (keep last state during refresh)
@@ -177,6 +190,12 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
                 {
                     var displayName = _displayNames.TryGetValue(providerId, out var name) ? name : providerId;
                     var vm = ProviderPulseViewModel.FromReading(reading, displayName);
+
+                    if (providerId.Equals("copilot", StringComparison.OrdinalIgnoreCase) && !IsCopilotEnabled)
+                    {
+                        continue;
+                    }
+
                     newProviders.Add(vm);
 
                     if (providerId.Equals("codex", StringComparison.OrdinalIgnoreCase))
