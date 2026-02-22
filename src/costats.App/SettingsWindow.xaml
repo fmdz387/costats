@@ -243,7 +243,7 @@
                 <CheckBox IsChecked="{Binding CopilotEnabled}" Style="{StaticResource SettingsCheckBox}" Margin="0,0,0,6">
                     <TextBlock Text="Enable GitHub Copilot usage" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
                 </CheckBox>
-                <TextBlock Text="Uses an unofficial GitHub endpoint and may break without notice."
+                <TextBlock Text="Connect a GitHub personal access token to fetch usage data."
                            FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="30,0,0,12" TextWrapping="Wrap" />
 
                 <TextBlock Text="Personal access token" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
