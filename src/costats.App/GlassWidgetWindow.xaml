@@ -305,7 +305,7 @@
                                 <Setter Property="Text" Value="Session" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding ProviderId}" Value="copilot">
-                                        <Setter Property="Text" Value="Included Premium requests" />
+                                        <Setter Property="Text" Value="Premium requests" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -328,8 +328,40 @@
                             </Style>
                         </TextBlock.Style>
                         <Hyperlink NavigateUri="https://github.com/settings/copilot/features"
-                                   RequestNavigate="OnCopilotUsageLinkNavigate">
+                                   RequestNavigate="OnUsageLinkNavigate">
                             View Copilot usage on GitHub
+                        </Hyperlink>
+                    </TextBlock>
+                    <TextBlock Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource TextFaintBrush}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ProviderId}" Value="codex">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                        <Hyperlink NavigateUri="https://chatgpt.com/codex/settings/usage"
+                                   RequestNavigate="OnUsageLinkNavigate">
+                            View Codex usage on ChatGPT
+                        </Hyperlink>
+                    </TextBlock>
+                    <TextBlock Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource TextFaintBrush}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ProviderId}" Value="claude">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                        <Hyperlink NavigateUri="https://claude.ai/settings/usage"
+                                   RequestNavigate="OnUsageLinkNavigate">
+                            View Claude usage
                         </Hyperlink>
                     </TextBlock>
                 </StackPanel>

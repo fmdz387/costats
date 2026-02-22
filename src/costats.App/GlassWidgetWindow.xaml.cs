@@ -103,7 +103,7 @@ namespace costats.App
             _settingsWindow.Activate();
         }
 
-        private void OnCopilotUsageLinkNavigate(object sender, RequestNavigateEventArgs e)
+        private void OnUsageLinkNavigate(object sender, RequestNavigateEventArgs e)
         {
             Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri)
             {
