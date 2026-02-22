@@ -441,13 +441,18 @@
                               Stretch="Uniform" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Button>
                     <!-- Description text fills remaining space -->
-                    <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextFaintBrush}" LineHeight="18" Margin="0,0,12,0">
-                        <Run FontWeight="SemiBold" Foreground="{StaticResource CodexAccent}">Codex</Run><Run> - OpenAI's AI coding assistant</Run>
-                        <LineBreak />
-                        <Run FontWeight="SemiBold" Foreground="{StaticResource ClaudeAccent}">Claude</Run><Run> - Anthropic's Claude Code CLI</Run>
-                        <LineBreak />
-                        <Run FontWeight="SemiBold" Foreground="{StaticResource CopilotAccent}">Copilot</Run><Run> - GitHub's AI coding assistant (experimental)</Run>
-                    </TextBlock>
+                    <StackPanel Margin="0,0,12,0">
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextFaintBrush}">
+                            <Run FontWeight="SemiBold" Foreground="{StaticResource CodexAccent}">Codex</Run><Run> - OpenAI's AI coding assistant</Run>
+                        </TextBlock>
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextFaintBrush}">
+                            <Run FontWeight="SemiBold" Foreground="{StaticResource ClaudeAccent}">Claude</Run><Run> - Anthropic's Claude Code CLI</Run>
+                        </TextBlock>
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextFaintBrush}"
+                                   Visibility="{Binding IsCopilotEnabled, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <Run FontWeight="SemiBold" Foreground="{StaticResource CopilotAccent}">Copilot</Run><Run> - GitHub's AI coding assistant</Run>
+                        </TextBlock>
+                    </StackPanel>
                 </DockPanel>
             </StackPanel>
             </Grid>

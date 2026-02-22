@@ -233,6 +233,9 @@
                                FontSize="11" Foreground="{StaticResource TextFaintBrush}" TextWrapping="Wrap" />
                 </StackPanel>
 
+                <!-- Divider -->
+                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,16,0,16" />
+
                 <!-- Copilot Section -->
                 <TextBlock Text="COPILOT (EXPERIMENTAL)" FontSize="10" FontWeight="SemiBold"
                            Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />
@@ -247,9 +250,22 @@
                 <Grid Margin="0,6,0,8">
                     <PasswordBox x:Name="CopilotTokenBox" Height="28"
                                  IsEnabled="{Binding IsCopilotTokenBusy, Converter={x:Static local:BoolNegationConverter.Instance}}" />
-                    <TextBlock Text="Stored" FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="0,0,10,0"
-                               HorizontalAlignment="Right" VerticalAlignment="Center" IsHitTestVisible="False"
-                               Visibility="{Binding HasCopilotToken, Converter={x:Static local:BoolToVisibilityConverter.Instance}}" />
+                    <TextBlock Text="********" FontSize="12" Foreground="{StaticResource TextFaintBrush}" Margin="10,0,10,0"
+                               HorizontalAlignment="Left" VerticalAlignment="Center" IsHitTestVisible="False">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasCopilotToken}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding ElementName=CopilotTokenBox, Path=IsKeyboardFocused}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                 </Grid>
 
                 <DockPanel Margin="0,0,0,6">

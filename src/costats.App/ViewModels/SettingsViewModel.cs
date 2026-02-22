@@ -93,7 +93,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool hasCopilotToken;
 
     [ObservableProperty]
-    private string copilotTokenStatus = "Copilot token not set.";
+    private string copilotTokenStatus = string.Empty;
 
     [ObservableProperty]
     private bool isCopilotTokenBusy;
@@ -182,7 +182,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             var validation = await _copilotFetcher.FetchAsync(trimmedToken, CancellationToken.None);
             HasCopilotToken = true;
             CopilotTokenStatus = validation.Status == CopilotFetchStatus.Success
-                ? "Copilot token validated."
+                ? "Copilot token saved."
                 : validation.StatusSummary;
         }
         catch (Exception ex)
@@ -300,9 +300,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             var token = await _credentialVault.LoadAsync(CredentialKeys.CopilotToken, CancellationToken.None);
             HasCopilotToken = !string.IsNullOrWhiteSpace(token);
-            CopilotTokenStatus = HasCopilotToken
-                ? "Copilot token stored."
-                : "Copilot token not set.";
+            CopilotTokenStatus = HasCopilotToken ? string.Empty : "Copilot token not set.";
         }
         catch (Exception ex)
         {
