@@ -305,7 +305,7 @@
                                 <Setter Property="Text" Value="Session" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding ProviderId}" Value="copilot">
-                                        <Setter Property="Text" Value="Premium requests" />
+                                        <Setter Property="Text" Value="Included Premium requests" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
