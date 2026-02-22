@@ -3,6 +3,7 @@
 This file captures Copilot-related implementation notes and external references used during development.
 
 ## Existing costats Copilot approach
+- Current implementation is based on https://github.com/Finesssee/Win-CodexBar/
 - Uses GitHub Copilot internal usage API.
 - Endpoint: `GET https://api.github.com/copilot_internal/user`
 - Required headers (current):
@@ -20,6 +21,7 @@ This file captures Copilot-related implementation notes and external references 
 
 ## Reference: Copilot Premium Usage Monitor
 Repo: https://github.com/Fail-Safe/CopilotPremiumUsageMonitor
+Note: This is a potential future enhancement or alternative approach, not the current implementation.
 
 What it uses:
 - Personal spend: `GET /users/{username}/settings/billing/usage`
