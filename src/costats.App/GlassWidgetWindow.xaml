@@ -394,6 +394,16 @@
 
                 <!-- Cost section -->
                 <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ProviderId}" Value="copilot">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
                     <TextBlock Text="Cost" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,10" />
                     <DockPanel Margin="0,0,0,6">
                         <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" DockPanel.Dock="Left">
