@@ -367,42 +367,7 @@
             <StackPanel Grid.Row="3" Margin="0,20,0,0">
                 <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,0,0,14" />
                 <DockPanel>
-                    <!-- Refresh button docked to right first -->
-                    <Button Command="{Binding RefreshCommand}" Width="28" Height="28" DockPanel.Dock="Right"
-                            Background="Transparent" BorderBrush="{StaticResource DividerBrush}" BorderThickness="1"
-                            ToolTip="Refresh now" Padding="0" Cursor="Hand" VerticalAlignment="Top"
-                            IsEnabled="{Binding IsRefreshing, Converter={StaticResource BoolNegationConverter}}">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="{TemplateBinding Background}"
-                                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                                    CornerRadius="6">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#15000000" />
-                                                </Trigger>
-                                                <Trigger Property="IsPressed" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#25000000" />
-                                                </Trigger>
-                                                <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter TargetName="border" Property="Opacity" Value="0.5" />
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Button.Style>
-                        <Path Data="{StaticResource RefreshIconPath}" Fill="{StaticResource TextSecondaryBrush}"
-                              Stretch="Uniform" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Button>
-                    <Button Width="28" Height="28" DockPanel.Dock="Right" Margin="0,0,6,0"
+                    <Button Width="28" Height="28" DockPanel.Dock="Right"
                             Background="Transparent" BorderBrush="{StaticResource DividerBrush}" BorderThickness="1"
                             ToolTip="Settings" Padding="0" Cursor="Hand" VerticalAlignment="Top"
                             Click="OnSettingsClick">
@@ -434,6 +399,41 @@
                             </Style>
                         </Button.Style>
                         <Path Data="{StaticResource SettingsIconPath}" Fill="{StaticResource TextSecondaryBrush}"
+                              Stretch="Uniform" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <!-- Refresh button docked to right first -->
+                    <Button Command="{Binding RefreshCommand}" Width="28" Height="28" DockPanel.Dock="Right" Margin="0,0,6,0"
+                            Background="Transparent" BorderBrush="{StaticResource DividerBrush}" BorderThickness="1"
+                            ToolTip="Refresh now" Padding="0" Cursor="Hand" VerticalAlignment="Top"
+                            IsEnabled="{Binding IsRefreshing, Converter={StaticResource BoolNegationConverter}}">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="6">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#15000000" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#25000000" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="border" Property="Opacity" Value="0.5" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                        <Path Data="{StaticResource RefreshIconPath}" Fill="{StaticResource TextSecondaryBrush}"
                               Stretch="Uniform" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Button>
                     <!-- Description text fills remaining space -->

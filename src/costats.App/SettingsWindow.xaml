@@ -168,6 +168,9 @@
                 <TextBlock Text="How often costats polls for usage data in the background."
                            FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="0,0,0,0" />
 
+                <!-- Divider -->
+                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,16,0,16" />
+
                 <!-- Claude Code / Multicc Section -->
                 <TextBlock Text="CLAUDE CODE" FontSize="10" FontWeight="SemiBold"
                            Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />
@@ -241,8 +244,13 @@
                            FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="30,0,0,12" TextWrapping="Wrap" />
 
                 <TextBlock Text="Personal access token" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
-                <PasswordBox x:Name="CopilotTokenBox" Margin="0,6,0,8" Height="28"
-                             IsEnabled="{Binding IsCopilotTokenBusy, Converter={x:Static local:BoolNegationConverter.Instance}}" />
+                <Grid Margin="0,6,0,8">
+                    <PasswordBox x:Name="CopilotTokenBox" Height="28"
+                                 IsEnabled="{Binding IsCopilotTokenBusy, Converter={x:Static local:BoolNegationConverter.Instance}}" />
+                    <TextBlock Text="Stored" FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="0,0,10,0"
+                               HorizontalAlignment="Right" VerticalAlignment="Center" IsHitTestVisible="False"
+                               Visibility="{Binding HasCopilotToken, Converter={x:Static local:BoolToVisibilityConverter.Instance}}" />
+                </Grid>
 
                 <DockPanel Margin="0,0,0,6">
                     <Button Content="Save token"
