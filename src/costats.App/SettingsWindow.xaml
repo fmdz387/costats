@@ -230,9 +230,6 @@
                                FontSize="11" Foreground="{StaticResource TextFaintBrush}" TextWrapping="Wrap" />
                 </StackPanel>
 
-                <!-- Divider -->
-                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,16,0,16" />
-
                 <!-- Copilot Section -->
                 <TextBlock Text="COPILOT (EXPERIMENTAL)" FontSize="10" FontWeight="SemiBold"
                            Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />

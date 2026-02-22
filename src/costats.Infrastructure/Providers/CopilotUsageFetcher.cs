@@ -32,6 +32,7 @@ public sealed class CopilotUsageFetcher : IDisposable
         };
         _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("costats");
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.copilot-preview+json"));
         _httpClient.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
     }
 
@@ -431,7 +432,7 @@ public sealed record CopilotUsageFetchResult(
         => new(CopilotFetchStatus.Forbidden, null, "Copilot access denied for this token.");
 
     public static CopilotUsageFetchResult NotFound()
-        => new(CopilotFetchStatus.NotFound, null, "Copilot usage endpoint unavailable.");
+        => new(CopilotFetchStatus.NotFound, null, "Copilot usage endpoint unavailable or token lacks Copilot access.");
 
     public static CopilotUsageFetchResult RateLimited()
         => new(CopilotFetchStatus.RateLimited, null, "Copilot usage rate limited.");
