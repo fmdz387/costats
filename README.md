@@ -61,7 +61,7 @@ Optional environment variable:
 - `CODEX_HOME` to point to a custom Codex config/logs directory.
 
 ## GitHub Copilot (experimental)
-1. Create a GitHub personal access token (classic or fine-grained) that can access your account.
+1. Create a **classic** GitHub personal access token with the **`copilot`** and **`read:user`** scopes.
 2. Open Settings → Copilot, enable the provider, and paste the token.
 3. Tokens are stored in Windows Credential Manager (not in `settings.json`).
 4. This relies on an unofficial GitHub endpoint and may break without notice.
