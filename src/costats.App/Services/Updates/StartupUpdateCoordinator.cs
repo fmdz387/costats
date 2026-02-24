@@ -106,8 +106,20 @@ public sealed class StartupUpdateCoordinator
 
             Directory.CreateDirectory(_updatesRoot);
             var scriptPath = Path.Combine(_updatesRoot, "apply-update.ps1");
-            await File.WriteAllTextAsync(scriptPath, UpdaterScriptContents, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), cancellationToken)
-                .ConfigureAwait(false);
+
+            // Prefer the script shipped with the staged update (from the new version's ZIP).
+            // This prevents a chicken-and-egg problem where the running version's embedded
+            // script has a bug that can only be fixed by the version being installed.
+            var stagedScript = Path.Combine(pending.StagingDirectory, "apply-update.ps1");
+            if (File.Exists(stagedScript))
+            {
+                File.Copy(stagedScript, scriptPath, overwrite: true);
+            }
+            else
+            {
+                await File.WriteAllTextAsync(scriptPath, UpdaterScriptContents, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             var psi = new ProcessStartInfo
             {
