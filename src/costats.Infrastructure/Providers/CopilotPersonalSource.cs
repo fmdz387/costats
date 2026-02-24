@@ -9,9 +9,6 @@ namespace costats.Infrastructure.Providers;
 
 public sealed class CopilotPersonalSource : ISignalSource
 {
-    private static readonly TimeSpan DayDuration = TimeSpan.FromDays(1);
-    private static readonly TimeSpan WeekDuration = TimeSpan.FromDays(7);
-
     private readonly AppSettings _settings;
     private readonly ICredentialVault _credentialVault;
     private readonly CopilotUsageFetcher _fetcher;
@@ -70,12 +67,33 @@ public sealed class CopilotPersonalSource : ISignalSource
                     Source: ReadingSource.Api);
             }
 
-            var sessionPercent = result.Payload.SessionUsedPercent
-                ?? CalculatePercent(result.Payload.TodayAccepted, result.Payload.TodaySuggested);
-            var weekPercent = result.Payload.WeekUsedPercent
-                ?? CalculatePercent(result.Payload.WeekAccepted, result.Payload.WeekSuggested);
+            var premium = result.Payload.Premium;
+            var chat = result.Payload.Chat;
+            var completions = result.Payload.Completions;
 
-            if (sessionPercent is null && weekPercent is null)
+            // Pro/Business: premium_interactions is the primary quota, chat is secondary
+            // Free plan: chat is the primary quota, completions is secondary
+            // Pick the first non-null, non-unlimited quota for each slot
+            var primaryQuota = PickQuota(premium, chat);
+            var secondaryQuota = PickQuota(chat != primaryQuota ? chat : null, completions);
+
+            long? sessionUsed = null;
+            long? sessionLimit = null;
+            if (primaryQuota is not null)
+            {
+                sessionUsed = primaryQuota.Used;
+                sessionLimit = primaryQuota.Entitlement;
+            }
+
+            long? weekUsed = null;
+            long? weekLimit = null;
+            if (secondaryQuota is not null)
+            {
+                weekUsed = secondaryQuota.Used;
+                weekLimit = secondaryQuota.Entitlement;
+            }
+
+            if (sessionUsed is null && weekUsed is null)
             {
                 return new ProviderReading(
                     Usage: null,
@@ -86,25 +104,27 @@ public sealed class CopilotPersonalSource : ISignalSource
                     Source: ReadingSource.Api);
             }
 
+            // Copilot quotas reset monthly (from quota_reset_date_utc)
             var resetAt = result.Payload.QuotaResetAt;
-            DateTimeOffset? sessionResetsAt = sessionPercent is not null
-                ? resetAt ?? CalculateNextDailyReset(now)
+            var monthlyDuration = CalculateMonthlyDuration(now, resetAt);
+            QuotaWindow? sessionWindow = sessionUsed is not null
+                ? new QuotaWindow(monthlyDuration, resetAt)
                 : null;
-            DateTimeOffset? weekResetsAt = weekPercent is not null
-                ? resetAt ?? CalculateWeeklyReset(now)
+            QuotaWindow? weekWindow = weekUsed is not null
+                ? new QuotaWindow(monthlyDuration, resetAt)
                 : null;
 
             var usage = new UsagePulse(
                 ProviderId: Profile.ProviderId,
                 CapturedAt: result.Payload.FetchedAt,
-                SessionUsed: sessionPercent is not null ? (long)Math.Round(sessionPercent.Value) : null,
-                SessionLimit: sessionPercent is not null ? 100 : null,
-                WeekUsed: weekPercent is not null ? (long)Math.Round(weekPercent.Value) : null,
-                WeekLimit: weekPercent is not null ? 100 : null,
+                SessionUsed: sessionUsed,
+                SessionLimit: sessionLimit,
+                WeekUsed: weekUsed,
+                WeekLimit: weekLimit,
                 SpendingBucket: null,
                 Consumption: null,
-                SessionWindow: sessionResetsAt is not null ? new QuotaWindow(DayDuration, sessionResetsAt) : null,
-                WeekWindow: weekResetsAt is not null ? new QuotaWindow(WeekDuration, weekResetsAt) : null);
+                SessionWindow: sessionWindow,
+                WeekWindow: weekWindow);
 
             var statusSummary = $"Updated {FormatRelativeTime(result.Payload.FetchedAt, now)}";
 
@@ -133,33 +153,37 @@ public sealed class CopilotPersonalSource : ISignalSource
         }
     }
 
-    private static double? CalculatePercent(long? accepted, long? suggested)
+    /// <summary>
+    /// Returns the first non-null, non-unlimited quota from the candidates.
+    /// </summary>
+    private static CopilotQuotaSnapshot? PickQuota(params CopilotQuotaSnapshot?[] candidates)
     {
-        if (accepted is null || suggested is null || suggested <= 0)
+        foreach (var q in candidates)
         {
-            return null;
+            if (q is not null && !q.Unlimited)
+            {
+                return q;
+            }
         }
 
-        var percent = Math.Clamp(accepted.Value * 100.0 / suggested.Value, 0, 100);
-        return percent;
+        return null;
     }
 
-    private static DateTimeOffset CalculateNextDailyReset(DateTimeOffset now)
+    /// <summary>
+    /// Calculates the monthly window duration based on the reset date.
+    /// Falls back to ~30 days if no reset date is available.
+    /// </summary>
+    private static TimeSpan CalculateMonthlyDuration(DateTimeOffset now, DateTimeOffset? resetAt)
     {
-        var nextDay = now.Date.AddDays(1);
-        return new DateTimeOffset(nextDay, TimeSpan.Zero);
-    }
-
-    private static DateTimeOffset CalculateWeeklyReset(DateTimeOffset now)
-    {
-        var daysUntilMonday = ((int)DayOfWeek.Monday - (int)now.DayOfWeek + 7) % 7;
-        if (daysUntilMonday == 0 && now.TimeOfDay > TimeSpan.Zero)
+        if (resetAt is null)
         {
-            daysUntilMonday = 7;
+            return TimeSpan.FromDays(30);
         }
 
-        var nextMonday = now.Date.AddDays(daysUntilMonday);
-        return new DateTimeOffset(nextMonday, TimeSpan.Zero);
+        // Window start is approximately one month before reset
+        var resetDate = resetAt.Value;
+        var windowStart = resetDate.AddMonths(-1);
+        return resetDate - windowStart;
     }
 
     private static string FormatPlanText(string? plan)
@@ -169,6 +193,10 @@ public sealed class CopilotPersonalSource : ISignalSource
             return "Copilot";
         }
 
-        return char.ToUpper(plan[0]) + plan[1..].ToLower();
+        // Handle plans like "individual_pro" → "Individual Pro"
+        return string.Join(' ', plan.Split('_')
+            .Select(word => word.Length > 0
+                ? char.ToUpper(word[0]) + word[1..].ToLower()
+                : word));
     }
 }

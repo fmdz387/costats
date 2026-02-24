@@ -115,87 +115,53 @@ public sealed class CopilotUsageFetcher : IDisposable
         return CopilotUsageFetchResult.Failed("Copilot usage request failed.");
     }
 
-    private static CopilotUsagePayload? ParsePayload(string json)
+    internal static CopilotUsagePayload? ParsePayload(string json)
     {
         try
         {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             var now = DateTimeOffset.UtcNow;
-            var today = DateOnly.FromDateTime(now.UtcDateTime);
-            var weekStart = today.AddDays(-6);
 
-            long? todayAccepted = null;
-            long? todaySuggested = null;
-            long? weekAccepted = null;
-            long? weekSuggested = null;
-            double? sessionPercent = null;
-            double? weekPercent = null;
-            DateTimeOffset? quotaResetAt = null;
+            CopilotQuotaSnapshot? premium = null;
+            CopilotQuotaSnapshot? chat = null;
+            CopilotQuotaSnapshot? completions = null;
 
-            if (TryReadQuotaSnapshots(root, out var premiumRemaining, out var chatRemaining))
+            // Pro/Business plans: quota_snapshots with detailed snapshot objects
+            if (root.TryGetProperty("quota_snapshots", out var snapshots) && snapshots.ValueKind == JsonValueKind.Object)
             {
-                sessionPercent = ConvertRemainingToUsed(premiumRemaining);
-                weekPercent = ConvertRemainingToUsed(chatRemaining);
+                premium = ParseQuotaSnapshot(snapshots, "premium_interactions");
+                chat = ParseQuotaSnapshot(snapshots, "chat");
+                completions = ParseQuotaSnapshot(snapshots, "completions");
             }
 
-            quotaResetAt = ReadDateTime(root, "quota_reset_date", "quotaResetDate", "reset_at", "resetAt");
-
-            var daily = ExtractDailyUsage(root);
-            foreach (var day in daily)
+            // Free plan: limited_user_quotas (remaining) + monthly_quotas (total)
+            if (premium is null && chat is null)
             {
-                if (day.Date == today)
-                {
-                    todayAccepted = SumValues(todayAccepted, day.Accepted);
-                    todaySuggested = SumValues(todaySuggested, day.Suggested);
-                }
+                var hasLimited = root.TryGetProperty("limited_user_quotas", out var limited) && limited.ValueKind == JsonValueKind.Object;
+                var hasMonthly = root.TryGetProperty("monthly_quotas", out var monthly) && monthly.ValueKind == JsonValueKind.Object;
 
-                if (day.Date >= weekStart && day.Date <= today)
+                if (hasLimited && hasMonthly)
                 {
-                    weekAccepted = SumValues(weekAccepted, day.Accepted);
-                    weekSuggested = SumValues(weekSuggested, day.Suggested);
+                    chat = BuildFreeQuota(limited, monthly, "chat");
+                    completions = BuildFreeQuota(limited, monthly, "completions");
                 }
             }
 
-            if (root.TryGetProperty("today", out var todayElement) && todayElement.ValueKind == JsonValueKind.Object)
-            {
-                todayAccepted ??= ReadLong(todayElement, AcceptedFields);
-                todaySuggested ??= ReadLong(todayElement, SuggestedFields);
-            }
+            // Prefer quota_reset_date_utc (full ISO 8601) over quota_reset_date / limited_user_reset_date
+            var quotaResetAt = ReadDateTime(root, "quota_reset_date_utc", "quota_reset_date", "limited_user_reset_date");
 
-            if (root.TryGetProperty("week", out var weekElement) && weekElement.ValueKind == JsonValueKind.Object)
-            {
-                weekAccepted ??= ReadLong(weekElement, AcceptedFields);
-                weekSuggested ??= ReadLong(weekElement, SuggestedFields);
-            }
-
-            if (root.TryGetProperty("summary", out var summaryElement) && summaryElement.ValueKind == JsonValueKind.Object)
-            {
-                todayAccepted ??= ReadLong(summaryElement, "today_accepted", "today_lines_accepted", "today_acceptances");
-                todaySuggested ??= ReadLong(summaryElement, "today_suggested", "today_lines_suggested", "today_suggestions");
-                weekAccepted ??= ReadLong(summaryElement, "week_accepted", "week_lines_accepted", "week_acceptances");
-                weekSuggested ??= ReadLong(summaryElement, "week_suggested", "week_lines_suggested", "week_suggestions");
-            }
-
-            var plan = ReadString(root, "copilotPlan", "copilot_plan", "plan", "subscription", "plan_type");
-            var login = ReadString(root, "login", "username");
-
-            if (root.TryGetProperty("user", out var userElement) && userElement.ValueKind == JsonValueKind.Object)
-            {
-                login ??= ReadString(userElement, "login", "username");
-            }
+            var plan = ReadString(root, "copilot_plan");
+            var login = ReadString(root, "login");
 
             return new CopilotUsagePayload(
-                sessionPercent,
-                weekPercent,
-                todayAccepted,
-                todaySuggested,
-                weekAccepted,
-                weekSuggested,
-                plan,
-                login,
-                quotaResetAt,
-                now);
+                Premium: premium,
+                Chat: chat,
+                Completions: completions,
+                Plan: plan,
+                Login: login,
+                QuotaResetAt: quotaResetAt,
+                FetchedAt: now);
         }
         catch (JsonException)
         {
@@ -203,148 +169,49 @@ public sealed class CopilotUsageFetcher : IDisposable
         }
     }
 
-    private static bool TryReadQuotaSnapshots(JsonElement root, out double? premiumRemaining, out double? chatRemaining)
+    private static CopilotQuotaSnapshot? BuildFreeQuota(JsonElement limited, JsonElement monthly, string key)
     {
-        premiumRemaining = null;
-        chatRemaining = null;
+        var remaining = ReadLong(limited, key);
+        var total = ReadLong(monthly, key);
 
-        if (!TryGetNestedObject(root, out var snapshots, "quota_snapshots", "quotaSnapshots"))
-        {
-            return false;
-        }
-
-        if (TryGetNestedObject(snapshots, out var premium, "premium_interactions", "premiumInteractions"))
-        {
-            premiumRemaining = ReadDouble(premium, "percent_remaining", "percentRemaining");
-        }
-
-        if (TryGetNestedObject(snapshots, out var chat, "chat"))
-        {
-            chatRemaining = ReadDouble(chat, "percent_remaining", "percentRemaining");
-        }
-
-        return premiumRemaining is not null || chatRemaining is not null;
-    }
-
-    private static bool TryGetNestedObject(JsonElement element, out JsonElement nested, params string[] names)
-    {
-        foreach (var name in names)
-        {
-            if (element.TryGetProperty(name, out nested) && nested.ValueKind == JsonValueKind.Object)
-            {
-                return true;
-            }
-        }
-
-        nested = default;
-        return false;
-    }
-
-    private static double? ConvertRemainingToUsed(double? remaining)
-    {
-        if (remaining is null)
+        if (remaining is null || total is null || total <= 0)
         {
             return null;
         }
 
-        return Math.Clamp(100.0 - remaining.Value, 0, 100);
+        var used = Math.Max(total.Value - remaining.Value, 0);
+        var percentRemaining = (double)remaining.Value / total.Value * 100.0;
+
+        return new CopilotQuotaSnapshot(
+            Entitlement: total.Value,
+            Remaining: remaining.Value,
+            PercentRemaining: percentRemaining,
+            Unlimited: false,
+            OveragePermitted: false,
+            OverageCount: 0);
     }
 
-    private static IReadOnlyList<CopilotUsageDay> ExtractDailyUsage(JsonElement root)
+    private static CopilotQuotaSnapshot? ParseQuotaSnapshot(JsonElement snapshots, string key)
     {
-        if (root.ValueKind == JsonValueKind.Array)
+        if (!snapshots.TryGetProperty(key, out var element) || element.ValueKind != JsonValueKind.Object)
         {
-            return ParseDailyArray(root);
+            return null;
         }
 
-        foreach (var name in DailyArrayFields)
-        {
-            if (!root.TryGetProperty(name, out var element))
-            {
-                continue;
-            }
+        var entitlement = ReadLong(element, "entitlement");
+        var remaining = ReadLong(element, "remaining");
+        var percentRemaining = ReadDouble(element, "percent_remaining");
+        var unlimited = ReadBool(element, "unlimited");
+        var overagePermitted = ReadBool(element, "overage_permitted");
+        var overageCount = ReadLong(element, "overage_count");
 
-            if (element.ValueKind == JsonValueKind.Array)
-            {
-                return ParseDailyArray(element);
-            }
-
-            if (element.ValueKind == JsonValueKind.Object)
-            {
-                foreach (var nestedName in DailyArrayFields)
-                {
-                    if (element.TryGetProperty(nestedName, out var nested) && nested.ValueKind == JsonValueKind.Array)
-                    {
-                        return ParseDailyArray(nested);
-                    }
-                }
-            }
-        }
-
-        return Array.Empty<CopilotUsageDay>();
-    }
-
-    private static IReadOnlyList<CopilotUsageDay> ParseDailyArray(JsonElement array)
-    {
-        var results = new List<CopilotUsageDay>();
-
-        foreach (var item in array.EnumerateArray())
-        {
-            if (item.ValueKind != JsonValueKind.Object)
-            {
-                continue;
-            }
-
-            var date = ReadDate(item);
-            if (date is null)
-            {
-                continue;
-            }
-
-            var accepted = ReadLong(item, AcceptedFields);
-            var suggested = ReadLong(item, SuggestedFields);
-            results.Add(new CopilotUsageDay(date.Value, accepted, suggested));
-        }
-
-        return results;
-    }
-
-    private static DateOnly? ReadDate(JsonElement element)
-    {
-        foreach (var name in DateFields)
-        {
-            if (!element.TryGetProperty(name, out var value))
-            {
-                continue;
-            }
-
-            if (value.ValueKind == JsonValueKind.String)
-            {
-                var text = value.GetString();
-                if (string.IsNullOrWhiteSpace(text))
-                {
-                    continue;
-                }
-
-                if (DateOnly.TryParse(text, out var day))
-                {
-                    return day;
-                }
-
-                if (DateTimeOffset.TryParse(text, out var timestamp))
-                {
-                    return DateOnly.FromDateTime(timestamp.UtcDateTime);
-                }
-            }
-
-            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var numeric))
-            {
-                var unix = numeric > 100_000_000_000 ? DateTimeOffset.FromUnixTimeMilliseconds(numeric) : DateTimeOffset.FromUnixTimeSeconds(numeric);
-                return DateOnly.FromDateTime(unix.UtcDateTime);
-            }
-        }
-
-        return null;
+        return new CopilotQuotaSnapshot(
+            Entitlement: entitlement ?? 0,
+            Remaining: remaining ?? 0,
+            PercentRemaining: percentRemaining,
+            Unlimited: unlimited ?? false,
+            OveragePermitted: overagePermitted ?? false,
+            OverageCount: overageCount ?? 0);
     }
 
     private static long? ReadLong(JsonElement element, params string[] names)
@@ -412,6 +279,24 @@ public sealed class CopilotUsageFetcher : IDisposable
         return null;
     }
 
+    private static bool? ReadBool(JsonElement element, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (!element.TryGetProperty(name, out var value))
+            {
+                continue;
+            }
+
+            if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                return value.GetBoolean();
+            }
+        }
+
+        return null;
+    }
+
     private static DateTimeOffset? ReadDateTime(JsonElement element, params string[] names)
     {
         foreach (var name in names)
@@ -430,70 +315,27 @@ public sealed class CopilotUsageFetcher : IDisposable
         return null;
     }
 
-    private static long? SumValues(long? first, long? second)
-    {
-        if (first is null) return second;
-        if (second is null) return first;
-        return first.Value + second.Value;
-    }
-
     public void Dispose()
     {
         _httpClient.Dispose();
     }
+}
 
-    private static readonly string[] DateFields =
-    [
-        "date",
-        "day",
-        "timestamp",
-        "bucket"
-    ];
-
-    private static readonly string[] DailyArrayFields =
-    [
-        "days",
-        "daily",
-        "usage",
-        "data"
-    ];
-
-    private static readonly string[] AcceptedFields =
-    [
-        "total_lines_accepted",
-        "lines_accepted",
-        "accepted_lines",
-        "total_acceptances",
-        "acceptances",
-        "accepted_suggestions",
-        "accepted_count",
-        "acceptances_count",
-        "total_accepted",
-        "accepted"
-    ];
-
-    private static readonly string[] SuggestedFields =
-    [
-        "total_lines_suggested",
-        "lines_suggested",
-        "suggested_lines",
-        "total_suggestions",
-        "suggestions",
-        "suggestions_count",
-        "total_suggestions_count",
-        "suggested_count",
-        "total_suggested",
-        "suggested"
-    ];
+public sealed record CopilotQuotaSnapshot(
+    long Entitlement,
+    long Remaining,
+    double? PercentRemaining,
+    bool Unlimited,
+    bool OveragePermitted,
+    long OverageCount)
+{
+    public long Used => Math.Max(Entitlement - Remaining, 0);
 }
 
 public sealed record CopilotUsagePayload(
-    double? SessionUsedPercent,
-    double? WeekUsedPercent,
-    long? TodayAccepted,
-    long? TodaySuggested,
-    long? WeekAccepted,
-    long? WeekSuggested,
+    CopilotQuotaSnapshot? Premium,
+    CopilotQuotaSnapshot? Chat,
+    CopilotQuotaSnapshot? Completions,
     string? Plan,
     string? Login,
     DateTimeOffset? QuotaResetAt,
@@ -536,5 +378,3 @@ public sealed record CopilotUsageFetchResult(
     public static CopilotUsageFetchResult Failed(string message)
         => new(CopilotFetchStatus.Failed, null, message);
 }
-
-public sealed record CopilotUsageDay(DateOnly Date, long? Accepted, long? Suggested);
