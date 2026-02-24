@@ -1,6 +1,6 @@
 # costats <img src="src/costats.App/Resources/tray-icon.ico" width="20" height="20" alt="costats icon" />
 
-A lightweight Windows tray app that shows live status for AI coding providers like Codex and Claude Code, plus token usage and spend.
+A lightweight Windows tray app that shows live status, plus token usage and spend, for AI coding providers like Codex and Claude Code, optionally GitHub Copilot.
 
 <p align="center">
   <img src="assets/image.png" alt="costats widget screenshot" width="360" />
@@ -10,7 +10,6 @@ A lightweight Windows tray app that shows live status for AI coding providers li
 - Session and weekly utilization with reset timers and pace indicators.
 - Daily tokens + cost and 30-day rolling tokens + cost.
 - Overage or credit balance when available.
-- Optional GitHub Copilot personal usage (experimental).
 - One-tap tray widget and a global hotkey (`Ctrl+Alt+U`).
 
 ## Install
