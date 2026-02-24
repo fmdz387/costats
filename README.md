@@ -1,6 +1,6 @@
 # costats <img src="src/costats.App/Resources/tray-icon.ico" width="20" height="20" alt="costats icon" />
 
-A lightweight Windows tray app that shows live status for AI coding providers like Codex and Claude Code, plus token usage and spend.
+A lightweight Windows tray app that shows live status, plus token usage and spend, for AI coding providers like Codex and Claude Code, optionally GitHub Copilot.
 
 <p align="center">
   <img src="assets/image.png" alt="costats widget screenshot" width="360" />
@@ -55,9 +55,16 @@ Common settings:
 - `RefreshMinutes` (default 5)
 - `Hotkey` (default `Ctrl+Alt+U`)
 - `StartAtLogin` (true/false)
+- `CopilotEnabled` (true/false)
 
 Optional environment variable:
 - `CODEX_HOME` to point to a custom Codex config/logs directory.
+
+## GitHub Copilot (experimental)
+1. Create a GitHub personal access token (classic or fine-grained) that can access your account.
+2. Open Settings → Copilot, enable the provider, and paste the token.
+3. Tokens are stored in Windows Credential Manager (not in `settings.json`).
+4. This relies on an unofficial GitHub endpoint and may break without notice.
 
 ## Updates
 - Portable ZIP installs (`install.ps1`): on startup, costats checks GitHub Releases (default every 6 hours), stages a matching architecture update and applies it on the next startup via an external updater process so binaries can be replaced safely.
@@ -69,6 +76,7 @@ Optional environment variable:
 ## Data sources
 - Codex usage: OAuth usage endpoint via `~/.codex/auth.json` (or `CODEX_HOME`), with local logs as a fallback for estimates.
 - Claude usage: OAuth usage endpoint via `~/.claude/.credentials.json`, with local logs as a fallback for estimates.
+- Copilot usage: GitHub Copilot usage endpoint via a personal access token stored in Windows Credential Manager.
 - Token + cost estimates: local JSONL logs from `~/.codex/sessions` and `~/.claude/projects`.
 
 ## Security & privacy

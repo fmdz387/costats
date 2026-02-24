@@ -241,7 +241,9 @@ namespace costats.App
 
                     services.AddSingleton<PulseBroadcaster>();
                     services.AddSingleton<ISourceSelector, SourceSelector>();
+                    services.AddSingleton<CopilotUsageFetcher>();
                     services.AddSingleton<ISignalSource, CodexLogSource>();
+                    services.AddSingleton<ISignalSource, CopilotPersonalSource>();
                     // Multicc integration: conditionally register per-profile or default Claude source
                     services.AddSingleton<MulticcConfigReader>();
 

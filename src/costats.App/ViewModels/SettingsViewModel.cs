@@ -1,10 +1,14 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using costats.App.Services.Updates;
 using costats.Application.Pulse;
+using costats.Application.Security;
 using costats.Application.Settings;
+using costats.Core.Pulse;
+using costats.Infrastructure.Providers;
 using Microsoft.Win32;
 using System.Linq;
 
@@ -15,16 +19,27 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly ISettingsStore _settingsStore;
     private readonly AppSettings _settings;
     private readonly IPulseOrchestrator _pulseOrchestrator;
+    private readonly ICredentialVault _credentialVault;
+    private readonly CopilotUsageFetcher _copilotFetcher;
     private readonly StartupUpdateCoordinator? _updateCoordinator;
     private readonly IMulticcDiscovery? _multiccDiscovery;
     private const string StartupRegistryKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
     private const string AppName = "costats";
 
-    public SettingsViewModel(ISettingsStore settingsStore, AppSettings settings, IPulseOrchestrator pulseOrchestrator, StartupUpdateCoordinator? updateCoordinator = null, IMulticcDiscovery? multiccDiscovery = null)
+    public SettingsViewModel(
+        ISettingsStore settingsStore,
+        AppSettings settings,
+        IPulseOrchestrator pulseOrchestrator,
+        ICredentialVault credentialVault,
+        CopilotUsageFetcher copilotFetcher,
+        StartupUpdateCoordinator? updateCoordinator = null,
+        IMulticcDiscovery? multiccDiscovery = null)
     {
         _settingsStore = settingsStore;
         _settings = settings;
         _pulseOrchestrator = pulseOrchestrator;
+        _credentialVault = credentialVault;
+        _copilotFetcher = copilotFetcher;
         _updateCoordinator = updateCoordinator;
         _multiccDiscovery = multiccDiscovery;
 
@@ -36,6 +51,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         multiccSelectedProfile = settings.MulticcSelectedProfile;
         multiccProfileNames = _multiccDiscovery?.Profiles.Select(p => p.Name).ToList() ?? [];
         multiccProfileCount = multiccProfileNames.Count;
+
+        copilotEnabled = settings.CopilotEnabled;
+        _ = LoadCopilotTokenStatusAsync();
     }
 
     [ObservableProperty]
@@ -67,6 +85,18 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private string multiccRestartMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool copilotEnabled;
+
+    [ObservableProperty]
+    private bool hasCopilotToken;
+
+    [ObservableProperty]
+    private string copilotTokenStatus = string.Empty;
+
+    [ObservableProperty]
+    private bool isCopilotTokenBusy;
 
     public bool IsMulticcAllProfiles => MulticcSelectedProfile is null;
 
@@ -127,6 +157,64 @@ public sealed partial class SettingsViewModel : ObservableObject
         MulticcRestartMessage = "Restart required to apply changes.";
         OnPropertyChanged(nameof(IsMulticcAllProfiles));
         _ = SaveSettingsAsync();
+    }
+
+    partial void OnCopilotEnabledChanged(bool value)
+    {
+        _settings.CopilotEnabled = value;
+        _ = SaveSettingsAsync();
+        _ = _pulseOrchestrator.RefreshOnceAsync(RefreshTrigger.Silent, CancellationToken.None);
+    }
+
+    public async Task SaveCopilotTokenAsync(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            CopilotTokenStatus = "Copilot token is required.";
+            return;
+        }
+
+        IsCopilotTokenBusy = true;
+        try
+        {
+            var trimmedToken = token.Trim();
+            await _credentialVault.SaveAsync(CredentialKeys.CopilotToken, trimmedToken, CancellationToken.None);
+            var validation = await _copilotFetcher.FetchAsync(trimmedToken, CancellationToken.None);
+            HasCopilotToken = true;
+            CopilotTokenStatus = validation.Status == CopilotFetchStatus.Success
+                ? "Copilot token saved."
+                : validation.StatusSummary;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Copilot token save failed: {ex.Message}");
+            CopilotTokenStatus = "Could not save Copilot token.";
+        }
+        finally
+        {
+            IsCopilotTokenBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ClearCopilotTokenAsync()
+    {
+        IsCopilotTokenBusy = true;
+        try
+        {
+            await _credentialVault.SaveAsync(CredentialKeys.CopilotToken, string.Empty, CancellationToken.None);
+            HasCopilotToken = false;
+            CopilotTokenStatus = "Copilot token cleared.";
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Copilot token clear failed: {ex.Message}");
+            CopilotTokenStatus = "Could not clear Copilot token.";
+        }
+        finally
+        {
+            IsCopilotTokenBusy = false;
+        }
     }
 
     [RelayCommand]
@@ -205,6 +293,21 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     private CancellationTokenSource? _updateCheckCts;
+
+    private async Task LoadCopilotTokenStatusAsync()
+    {
+        try
+        {
+            var token = await _credentialVault.LoadAsync(CredentialKeys.CopilotToken, CancellationToken.None);
+            HasCopilotToken = !string.IsNullOrWhiteSpace(token);
+            CopilotTokenStatus = HasCopilotToken ? string.Empty : "Copilot token not set.";
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Copilot token load failed: {ex.Message}");
+            CopilotTokenStatus = "Could not load Copilot token.";
+        }
+    }
 
     private async Task SaveSettingsAsync()
     {

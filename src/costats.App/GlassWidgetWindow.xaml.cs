@@ -1,8 +1,10 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using System.Windows.Navigation;
 using costats.App.ViewModels;
 using costats.Application.Shell;
 
@@ -11,12 +13,14 @@ namespace costats.App
     public partial class GlassWidgetWindow : Window
     {
         private readonly IGlassBackdropService _backdropService;
+        private readonly SettingsWindow _settingsWindow;
 
-        public GlassWidgetWindow(PulseViewModel viewModel, IGlassBackdropService backdropService)
+        public GlassWidgetWindow(PulseViewModel viewModel, SettingsWindow settingsWindow, IGlassBackdropService backdropService)
         {
             InitializeComponent();
             DataContext = viewModel;
             _backdropService = backdropService;
+            _settingsWindow = settingsWindow;
             SourceInitialized += OnSourceInitialized;
             MouseLeftButtonDown += OnMouseLeftButtonDown;
             Deactivated += OnDeactivated;
@@ -83,6 +87,29 @@ namespace costats.App
         private void OnQuitClick(object sender, RoutedEventArgs e)
         {
             System.Windows.Application.Current.Shutdown();
+        }
+
+        private void OnSettingsClick(object sender, RoutedEventArgs e)
+        {
+            var workArea = SystemParameters.WorkArea;
+            _settingsWindow.Left = (workArea.Width - _settingsWindow.Width) / 2 + workArea.Left;
+            _settingsWindow.Top = (workArea.Height - _settingsWindow.Height) / 2 + workArea.Top;
+
+            if (!_settingsWindow.IsVisible)
+            {
+                _settingsWindow.Show();
+            }
+
+            _settingsWindow.Activate();
+        }
+
+        private void OnUsageLinkNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri)
+            {
+                UseShellExecute = true
+            });
+            e.Handled = true;
         }
     }
 }

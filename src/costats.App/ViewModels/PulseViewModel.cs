@@ -3,6 +3,7 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using costats.Application.Pulse;
+using costats.Application.Settings;
 using costats.Core.Pulse;
 
 namespace costats.App.ViewModels;
@@ -10,12 +11,15 @@ namespace costats.App.ViewModels;
 public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseState>, IDisposable
 {
     private readonly IPulseOrchestrator _orchestrator;
+    private readonly AppSettings _settings;
     private readonly IDisposable _subscription;
     private readonly Dictionary<string, string> _displayNames;
 
-    public PulseViewModel(IPulseOrchestrator orchestrator, IEnumerable<ISignalSource> sources)
+    public PulseViewModel(IPulseOrchestrator orchestrator, AppSettings settings, IEnumerable<ISignalSource> sources)
     {
         _orchestrator = orchestrator;
+        _settings = settings;
+        isCopilotEnabled = settings.CopilotEnabled;
         _displayNames = sources
             .Select(source => source.Profile)
             .GroupBy(profile => profile.ProviderId)
@@ -37,6 +41,9 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
     private ProviderPulseViewModel codex = new();
 
     [ObservableProperty]
+    private ProviderPulseViewModel copilot = new();
+
+    [ObservableProperty]
     private string updatedLabel = "Updated never";
 
     [ObservableProperty]
@@ -47,6 +54,9 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
 
     [ObservableProperty]
     private bool isMulticcActive;
+
+    [ObservableProperty]
+    private bool isCopilotEnabled;
 
     [ObservableProperty]
     private string multiccSummary = string.Empty;
@@ -72,7 +82,12 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
     /// <summary>
     /// Returns the currently selected provider based on tab index.
     /// </summary>
-    public ProviderPulseViewModel SelectedProvider => SelectedTabIndex == 0 ? Codex : Claude;
+    public ProviderPulseViewModel SelectedProvider => SelectedTabIndex switch
+    {
+        0 => Codex,
+        1 => Claude,
+        _ => IsCopilotEnabled ? Copilot : Codex
+    };
 
     /// <summary>
     /// Returns the provider ID for the currently selected tab.
@@ -84,11 +99,16 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
             if (SelectedTabIndex == 0)
                 return "codex";
 
-            // For multicc, return the first (worst-case) profile's ID for targeted refresh
-            if (IsMulticcActive && ClaudeProfiles.Count > 0)
-                return ClaudeProfiles[0].ProviderId;
+            if (SelectedTabIndex == 1)
+            {
+                // For multicc, return the first (worst-case) profile's ID for targeted refresh
+                if (IsMulticcActive && ClaudeProfiles.Count > 0)
+                    return ClaudeProfiles[0].ProviderId;
 
-            return "claude";
+                return "claude";
+            }
+
+            return IsCopilotEnabled ? "copilot" : "codex";
         }
     }
 
@@ -140,6 +160,12 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
         // This allows window deactivation to work even during data updates
         System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
         {
+            IsCopilotEnabled = _settings.CopilotEnabled;
+            if (!IsCopilotEnabled && SelectedTabIndex > 1)
+            {
+                SelectedTabIndex = 0;
+            }
+
             IsRefreshing = value.IsRefreshing;
 
             // Only update provider data if we have providers (keep last state during refresh)
@@ -150,6 +176,7 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
                 var claudeProfileList = new List<ProviderPulseViewModel>();
                 ProviderPulseViewModel? newCodex = null;
                 ProviderPulseViewModel? newClaude = null;
+                ProviderPulseViewModel? newCopilot = null;
 
                 // Aggregate cost/token totals across multicc profiles
                 decimal totalTodayCost = 0;
@@ -163,6 +190,12 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
                 {
                     var displayName = _displayNames.TryGetValue(providerId, out var name) ? name : providerId;
                     var vm = ProviderPulseViewModel.FromReading(reading, displayName);
+
+                    if (providerId.Equals("copilot", StringComparison.OrdinalIgnoreCase) && !IsCopilotEnabled)
+                    {
+                        continue;
+                    }
+
                     newProviders.Add(vm);
 
                     if (providerId.Equals("codex", StringComparison.OrdinalIgnoreCase))
@@ -172,6 +205,10 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
                     else if (providerId.Equals("claude", StringComparison.OrdinalIgnoreCase))
                     {
                         newClaude = vm;
+                    }
+                    else if (providerId.Equals("copilot", StringComparison.OrdinalIgnoreCase))
+                    {
+                        newCopilot = vm;
                     }
                     else if (providerId.StartsWith("claude:", StringComparison.OrdinalIgnoreCase))
                     {
@@ -226,6 +263,7 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
                 // correct panel stays visible while collections are swapped.
                 if (newCodex is not null) Codex = newCodex;
                 if (newClaude is not null) Claude = newClaude;
+                if (newCopilot is not null) Copilot = newCopilot;
                 IsMulticcActive = isMulticc;
                 MulticcSummary = summaryText;
 
