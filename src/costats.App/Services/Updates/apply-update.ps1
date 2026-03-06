@@ -68,9 +68,45 @@ function Relaunch-App {
     Write-Log "CRITICAL: Could not launch any executable. Candidates: $($candidates -join ', ')"
 }
 
+function Increment-FailedAttempts {
+    try {
+        if (Test-Path $PendingFilePath) {
+            $json = Get-Content -Raw -Path $PendingFilePath | ConvertFrom-Json
+            if (-not (Get-Member -InputObject $json -Name "failedAttempts" -MemberType NoteProperty)) {
+                $json | Add-Member -NotePropertyName "failedAttempts" -NotePropertyValue 0
+            }
+            $json.failedAttempts = $json.failedAttempts + 1
+            $json | ConvertTo-Json -Depth 10 | Set-Content -Path $PendingFilePath -Encoding UTF8
+            Write-Log "Incremented failedAttempts to $($json.failedAttempts)."
+        }
+    } catch {
+        Write-Log "Failed to increment failedAttempts: $($_.Exception.Message)"
+    }
+}
+
 Write-Log "Starting staged update."
 Write-Log "InstallDir=$InstallDir"
 Write-Log "StagingDir=$StagingDir"
+
+# --- Circuit breaker: abort if too many failed attempts ---
+$maxAttempts = 3
+try {
+    if (Test-Path $PendingFilePath) {
+        $pendingJson = Get-Content -Raw -Path $PendingFilePath | ConvertFrom-Json
+        $currentAttempts = 0
+        if (Get-Member -InputObject $pendingJson -Name "failedAttempts" -MemberType NoteProperty) {
+            $currentAttempts = $pendingJson.failedAttempts
+        }
+        if ($currentAttempts -ge $maxAttempts) {
+            Write-Log "Update has failed $currentAttempts times (max $maxAttempts). Giving up and removing pending update."
+            Remove-Item -Force $PendingFilePath -ErrorAction SilentlyContinue
+            Relaunch-App
+            return
+        }
+    }
+} catch {
+    Write-Log "Failed to read failedAttempts: $($_.Exception.Message)"
+}
 
 try {
     # --- Wait for target process to exit ---
@@ -126,6 +162,7 @@ try {
     } catch {
         Write-Log "Cannot move install to backup: $($_.Exception.Message)"
         Write-Log "Update deferred to next startup. Relaunching current app."
+        Increment-FailedAttempts
         Relaunch-App
         return
     }
