@@ -5,10 +5,12 @@ using costats.App.Services;
 using costats.App.Services.Updates;
 using costats.App.ViewModels;
 using costats.Application.Abstractions;
+using costats.Application.Boost;
 using costats.Application.Pulse;
 using costats.Application.Security;
 using costats.Application.Settings;
 using costats.Application.Shell;
+using costats.Infrastructure.Boost;
 using costats.Infrastructure.Providers;
 using costats.Infrastructure.Pulse;
 using costats.Infrastructure.Security;
@@ -291,6 +293,10 @@ namespace costats.App
 
                     services.AddSingleton<ICredentialVault, CredentialVault>();
                     services.AddSingleton<IGlassBackdropService, GlassBackdropService>();
+
+                    services.AddSingleton<CodexBoostMonitor>();
+                    services.AddSingleton<ICodexBoostMonitor>(sp => sp.GetRequiredService<CodexBoostMonitor>());
+                    services.AddHostedService(sp => sp.GetRequiredService<CodexBoostMonitor>());
 
                     services.AddSingleton<PulseViewModel>();
                     services.AddSingleton<SettingsViewModel>();

@@ -232,6 +232,36 @@
                     </Style>
                 </StackPanel.Style>
 
+                <!-- Codex 2x Boost Banner: visible on Codex tab during promo period -->
+                <Border Margin="0,0,0,14" CornerRadius="6" Padding="10,7"
+                        BorderThickness="1" BorderBrush="{StaticResource CodexAccent}">
+                    <Border.Background>
+                        <SolidColorBrush Color="#10B981" Opacity="0.12" />
+                    </Border.Background>
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding ProviderId}" Value="codex" />
+                                        <Condition Binding="{Binding DataContext.IsCodexPromoActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <DockPanel>
+                        <Border DockPanel.Dock="Left" CornerRadius="3" Padding="5,2" Margin="0,0,8,0"
+                                VerticalAlignment="Center" Background="{StaticResource CodexAccent}">
+                            <TextBlock Text="2×" FontSize="10" FontWeight="Bold" Foreground="White" />
+                        </Border>
+                        <TextBlock Text="{Binding DataContext.CodexBoostLabel, RelativeSource={RelativeSource AncestorType=Window}}"
+                                   FontSize="11" VerticalAlignment="Center" Foreground="#047857" />
+                    </DockPanel>
+                </Border>
+
                 <!-- Provider header -->
                 <DockPanel Margin="0,0,0,14">
                     <StackPanel DockPanel.Dock="Left">
