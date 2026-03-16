@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using costats.Application.Boost;
 using costats.Application.Pulse;
 using costats.Application.Settings;
 using costats.Core.Pulse;
@@ -14,8 +15,10 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
     private readonly AppSettings _settings;
     private readonly IDisposable _subscription;
     private readonly Dictionary<string, string> _displayNames;
+    private readonly IClaudeBoostMonitor _boostMonitor;
+    private readonly EventHandler _boostHandler;
 
-    public PulseViewModel(IPulseOrchestrator orchestrator, AppSettings settings, IEnumerable<ISignalSource> sources)
+    public PulseViewModel(IPulseOrchestrator orchestrator, AppSettings settings, IEnumerable<ISignalSource> sources, IClaudeBoostMonitor boostMonitor)
     {
         _orchestrator = orchestrator;
         _settings = settings;
@@ -27,6 +30,11 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
 
         Providers = new ObservableCollection<ProviderPulseViewModel>();
         _subscription = orchestrator.PulseStream.Subscribe(this);
+
+        _boostMonitor = boostMonitor;
+        _boostHandler = (_, _) => System.Windows.Application.Current.Dispatcher.BeginInvoke(UpdateBoostProperties);
+        boostMonitor.StatusChanged += _boostHandler;
+        UpdateBoostProperties();
     }
 
     public ObservableCollection<ProviderPulseViewModel> Providers { get; }
@@ -76,6 +84,26 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
 
     [ObservableProperty]
     private bool hasMulticcTotals;
+
+    [ObservableProperty]
+    private bool isPromoActive;
+
+    [ObservableProperty]
+    private bool isBoostActive;
+
+    [ObservableProperty]
+    private string boostLabel = string.Empty;
+
+    private void UpdateBoostProperties()
+    {
+        var s = _boostMonitor.Current;
+        IsPromoActive = s?.PromoActive ?? false;
+        IsBoostActive = s?.Is2x ?? false;
+        BoostLabel = s is null ? string.Empty
+            : s.Is2x
+                ? (s.ExpiresIn.Length > 0 ? $"2× limits active · ends in {s.ExpiresIn}" : "2× limits active")
+                : (s.ExpiresIn.Length > 0 ? $"Peak hours · resumes in {s.ExpiresIn}" : "Peak hours · standard limits");
+    }
 
     public ObservableCollection<ProviderPulseViewModel> ClaudeProfiles { get; } = new();
 
@@ -307,6 +335,7 @@ public sealed partial class PulseViewModel : ObservableObject, IObserver<PulseSt
 
     public void Dispose()
     {
+        _boostMonitor.StatusChanged -= _boostHandler;
         _subscription.Dispose();
     }
 }

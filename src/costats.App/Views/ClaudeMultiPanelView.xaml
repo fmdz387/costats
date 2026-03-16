@@ -44,6 +44,77 @@
     </UserControl.Resources>
 
     <StackPanel>
+        <!-- Claude 2x Boost Banner: visible during promo period -->
+        <Border Margin="0,0,0,8" CornerRadius="6" Padding="10,7">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <!-- Default (2x active): green tint -->
+                    <Setter Property="Background">
+                        <Setter.Value><SolidColorBrush Color="#22C55E" Opacity="0.12" /></Setter.Value>
+                    </Setter>
+                    <Setter Property="BorderBrush" Value="#22C55E" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsPromoActive}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                        <!-- Peak hours (not 2x): amber tint -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding IsPromoActive}" Value="True" />
+                                <Condition Binding="{Binding IsBoostActive}" Value="False" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Background">
+                                <Setter.Value><SolidColorBrush Color="#F59E0B" Opacity="0.12" /></Setter.Value>
+                            </Setter>
+                            <Setter Property="BorderBrush" Value="#D97706" />
+                        </MultiDataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <DockPanel>
+                <!-- Status badge: "2×" or "PEAK" -->
+                <Border DockPanel.Dock="Left" CornerRadius="3" Padding="5,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#16A34A" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsBoostActive}" Value="False">
+                                    <Setter Property="Background" Value="#D97706" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock FontSize="10" FontWeight="Bold" Foreground="White">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="2×" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsBoostActive}" Value="False">
+                                        <Setter Property="Text" Value="PEAK" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Border>
+                <!-- Status label -->
+                <TextBlock Text="{Binding BoostLabel}" FontSize="11" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#15803D" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsBoostActive}" Value="False">
+                                    <Setter Property="Foreground" Value="#92400E" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </DockPanel>
+        </Border>
+
         <!-- Summary bar: health breakdown -->
         <Border Padding="12,8" Margin="0,0,0,0" CornerRadius="6" Background="#0A6366F1">
             <DockPanel>
