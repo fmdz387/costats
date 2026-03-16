@@ -1,4 +1,4 @@
-using System.Text.Json;
+using System.Text.RegularExpressions;
 using costats.Application.Boost;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -6,13 +6,22 @@ using Microsoft.Extensions.Logging;
 namespace costats.Infrastructure.Boost;
 
 /// <summary>
-/// Polls iscodex2x.com/json once at startup then hourly to check whether the
+/// Polls iscodex2x.com once at startup then hourly to check whether the
 /// Codex 2x promotional period is still active.
+/// The site has no JSON API — status and deadline are parsed from the HTML.
 /// Unlike Claude's 2x promo, Codex 2x is around-the-clock (no peak-hour windows).
 /// </summary>
 public sealed class CodexBoostMonitor : BackgroundService, ICodexBoostMonitor
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromHours(1);
+
+    // Matches data-promo-state="active" in the page HTML
+    private static readonly Regex PromoStateRegex = new(
+        @"data-promo-state=""([^""]+)""", RegexOptions.Compiled);
+
+    // Matches the deadline inside <p class="deadline">...<strong>DATE</strong>...</p>
+    private static readonly Regex DeadlineRegex = new(
+        @"class=""deadline""[^>]*>.*?<strong>([^<]+)</strong>", RegexOptions.Compiled | RegexOptions.Singleline);
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<CodexBoostMonitor> _logger;
@@ -51,21 +60,18 @@ public sealed class CodexBoostMonitor : BackgroundService, ICodexBoostMonitor
     {
         try
         {
-            var response = await _httpClient.GetAsync("/json", cancellationToken);
+            var response = await _httpClient.GetAsync("/", cancellationToken);
             if (!response.IsSuccessStatusCode)
                 return;
 
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            using var doc = JsonDocument.Parse(content);
-            var root = doc.RootElement;
+            var html = await response.Content.ReadAsStringAsync(cancellationToken);
 
-            // "answer" is "YES" when the promo is active
-            bool promoActive = root.TryGetProperty("answer", out var answer)
-                && answer.GetString()?.Equals("YES", StringComparison.OrdinalIgnoreCase) == true;
+            var stateMatch = PromoStateRegex.Match(html);
+            bool promoActive = stateMatch.Success
+                && stateMatch.Groups[1].Value.Equals("active", StringComparison.OrdinalIgnoreCase);
 
-            string deadline = root.TryGetProperty("deadline", out var d) && d.ValueKind == JsonValueKind.String
-                ? d.GetString() ?? string.Empty
-                : string.Empty;
+            var deadlineMatch = DeadlineRegex.Match(html);
+            string deadline = deadlineMatch.Success ? deadlineMatch.Groups[1].Value.Trim() : string.Empty;
 
             Current = new CodexBoostState(promoActive, deadline, DateTimeOffset.UtcNow);
             StatusChanged?.Invoke(this, EventArgs.Empty);
