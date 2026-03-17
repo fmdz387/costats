@@ -52,9 +52,9 @@
                     <Setter Property="BorderThickness" Value="1" />
                     <!-- Default (2x active): green tint -->
                     <Setter Property="Background">
-                        <Setter.Value><SolidColorBrush Color="#22C55E" Opacity="0.12" /></Setter.Value>
+                        <Setter.Value><SolidColorBrush Color="#10B981" Opacity="0.12" /></Setter.Value>
                     </Setter>
-                    <Setter Property="BorderBrush" Value="#22C55E" />
+                    <Setter Property="BorderBrush" Value="#10B981" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsPromoActive}" Value="True">
                             <Setter Property="Visibility" Value="Visible" />
@@ -78,7 +78,7 @@
                 <Border DockPanel.Dock="Left" CornerRadius="3" Padding="5,2" Margin="0,0,8,0" VerticalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#16A34A" />
+                            <Setter Property="Background" Value="#10B981" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsBoostActive}" Value="False">
                                     <Setter Property="Background" Value="#D97706" />
@@ -103,7 +103,7 @@
                 <TextBlock Text="{Binding BoostLabel}" FontSize="11" VerticalAlignment="Center">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="#15803D" />
+                            <Setter Property="Foreground" Value="#047857" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsBoostActive}" Value="False">
                                     <Setter Property="Foreground" Value="#92400E" />
