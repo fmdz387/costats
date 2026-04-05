@@ -22,6 +22,10 @@ namespace costats.App.Services
         private readonly IPulseOrchestrator _pulseOrchestrator;
         private readonly PulseViewModel _viewModel;
         private readonly TaskbarPositionService _taskbarPosition;
+        private readonly Icon _defaultIcon;
+        private Icon? _liveIcon;
+        private Icon? _tintedIcon;
+        private IDisposable? _pulseSubscription;
 
         public TrayHost(
             PulseViewModel viewModel,
@@ -36,8 +40,10 @@ namespace costats.App.Services
             _pulseOrchestrator = pulseOrchestrator;
             _taskbarPosition = taskbarPosition;
 
+            _defaultIcon = CreateIcon();
+
             _taskbarIcon = new TaskbarIcon();
-            _taskbarIcon.Icon = CreateIcon();
+            _taskbarIcon.Icon = _defaultIcon;
             _taskbarIcon.ToolTipText = "costats";
             _taskbarIcon.ContextMenu = BuildContextMenu();
             _taskbarIcon.TrayLeftMouseUp += OnTrayLeftClick;
@@ -45,6 +51,7 @@ namespace costats.App.Services
 
             SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
             _widgetWindow.SizeChanged += OnWidgetSizeChanged;
+            _pulseSubscription = _pulseOrchestrator.PulseStream.Subscribe(new ActionObserver<PulseState>(OnPulseUpdate));
         }
 
         private void OnTrayLeftClick(object? sender, EventArgs e)
@@ -90,6 +97,11 @@ namespace costats.App.Services
             var clonedIcon = (Icon)tempIcon.Clone();
             DestroyIcon(hIcon);
             return clonedIcon;
+        }
+
+        private void UpdateTrayIcon()
+        {
+            _taskbarIcon.Icon = _liveIcon ?? _defaultIcon;
         }
 
         private ContextMenu BuildContextMenu()
@@ -176,15 +188,6 @@ namespace costats.App.Services
             }
         }
 
-        public void Dispose()
-        {
-            _widgetWindow.SizeChanged -= OnWidgetSizeChanged;
-            SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
-            _taskbarIcon.Dispose();
-            _widgetWindow.Close();
-            _settingsWindow.Close();
-        }
-
         private void OnWidgetSizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (_widgetWindow.IsVisible)
@@ -207,5 +210,107 @@ namespace costats.App.Services
             _widgetWindow.Left = position.X;
             _widgetWindow.Top = position.Y;
         }
+
+        internal static double CalcPct(long? used, long? limit)
+        {
+            if (limit is null or <= 0) return 0.0;
+            return Math.Clamp((double)(used ?? 0) / limit.Value * 100.0, 0.0, 100.0);
+        }
+
+        private void OnPulseUpdate(PulseState state)
+        {
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+            {
+                var winner = DetermineActiveProvider(state);
+                var newIcon = winner.HasValue
+                    ? TryRenderLiveIcon(winner.Value.providerId, winner.Value.reading)
+                    : null;
+
+                _liveIcon?.Dispose();
+                _liveIcon = newIcon;
+                UpdateTrayIcon();
+            });
+        }
+
+        // Picks the provider with the most recent CapturedAt among those with non-zero SessionUsed.
+        // CapturedAt is the tiebreaker: whichever provider was refreshed latest is considered "active".
+        private static (string providerId, ProviderReading reading)? DetermineActiveProvider(PulseState state)
+        {
+            (string, ProviderReading)? winner = null;
+            DateTimeOffset? bestAt = null;
+
+            foreach (var (id, reading) in state.Providers)
+            {
+                var usage = reading.Usage;
+                if (usage is null || usage.SessionUsed is null or <= 0)
+                    continue;
+
+                if (bestAt is null || usage.CapturedAt > bestAt)
+                {
+                    bestAt = usage.CapturedAt;
+                    winner = (id, reading);
+                }
+            }
+
+            return winner;
+        }
+
+        private Icon? TryRenderLiveIcon(string providerId, ProviderReading reading)
+        {
+            // Provider IDs must match ProviderCatalog in costats.Infrastructure
+            var keys = providerId switch
+            {
+                "claude"  => (geometry: "ClaudeIconPath",  accent: "ClaudeAccent"),
+                "codex"   => (geometry: "CodexIconPath",   accent: "CodexAccent"),
+                "copilot" => (geometry: "CopilotIconPath", accent: "CopilotAccent"),
+                _ => (geometry: (string?)null, accent: (string?)null)
+            };
+
+            if (keys.geometry is null) return null;
+
+            var geometry = System.Windows.Application.Current.TryFindResource(keys.geometry)
+                as System.Windows.Media.Geometry;
+            var brush = System.Windows.Application.Current.TryFindResource(keys.accent)
+                as System.Windows.Media.SolidColorBrush;
+
+            if (geometry is null || brush is null)
+            {
+                Log.Warning("TrayHost: provider resources not found for {Provider}", providerId);
+                return null;
+            }
+
+            if (reading.Usage is not { } usage) return null;
+            var sessionPct = CalcPct(usage.SessionUsed, usage.SessionLimit);
+            var weekPct = CalcPct(usage.WeekUsed, usage.WeekLimit);
+
+            return TrayIconRenderer.Render(geometry, brush.Color, sessionPct, weekPct);
+        }
+
+        public void Dispose()
+        {
+            _pulseSubscription?.Dispose();
+            _widgetWindow.SizeChanged -= OnWidgetSizeChanged;
+            SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+            _taskbarIcon.Dispose();
+            _defaultIcon.Dispose();
+            _liveIcon?.Dispose();
+            _tintedIcon?.Dispose();
+            _widgetWindow.Close();
+            _settingsWindow.Close();
+        }
+    }
+
+    /// <summary>
+    /// Minimal IObserver adapter for Action-based subscriptions (no Rx dependency required).
+    /// </summary>
+    internal sealed class ActionObserver<T> : IObserver<T>
+    {
+        private readonly Action<T> _onNext;
+
+        public ActionObserver(Action<T> onNext) => _onNext = onNext;
+
+        public void OnNext(T value) => _onNext(value);
+        public void OnError(Exception error) => Log.Error(error, "PulseStream error");
+        public void OnCompleted() { }
     }
 }
