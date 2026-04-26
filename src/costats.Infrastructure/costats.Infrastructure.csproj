@@ -7,6 +7,14 @@
 
   <ItemGroup>
     <PackageReference Include="AdysTech.CredentialManager" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Pricing\Resources\litellm-snapshot.json" />
   </ItemGroup>
 
   <PropertyGroup>

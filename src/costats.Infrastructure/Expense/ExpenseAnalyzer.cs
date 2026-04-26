@@ -1,3 +1,4 @@
+using costats.Application.Pricing;
 using costats.Core.Pulse;
 
 namespace costats.Infrastructure.Expense;
@@ -8,6 +9,12 @@ namespace costats.Infrastructure.Expense;
 public sealed class ExpenseAnalyzer
 {
     private const int DefaultWindowDays = 30;
+    private readonly IPricingCatalog _pricingCatalog;
+
+    public ExpenseAnalyzer(IPricingCatalog pricingCatalog)
+    {
+        _pricingCatalog = pricingCatalog;
+    }
 
     /// <summary>
     /// Produces a consumption digest for Claude Code.
@@ -17,7 +24,7 @@ public sealed class ExpenseAnalyzer
         var today = DateOnly.FromDateTime(DateTime.Now);
         var windowStart = today.AddDays(-(DefaultWindowDays - 1));
 
-        var slices = await LogDigestor.DigestClaudeLogsAsync(windowStart, today, cancellationToken).ConfigureAwait(false);
+        var slices = await LogDigestor.DigestClaudeLogsAsync(_pricingCatalog, windowStart, today, cancellationToken).ConfigureAwait(false);
         return BuildDigest(slices, today, DefaultWindowDays);
     }
 
@@ -29,7 +36,7 @@ public sealed class ExpenseAnalyzer
         var today = DateOnly.FromDateTime(DateTime.Now);
         var windowStart = today.AddDays(-(DefaultWindowDays - 1));
 
-        var slices = await LogDigestor.DigestClaudeLogsAsync(logDirectory, windowStart, today, cancellationToken).ConfigureAwait(false);
+        var slices = await LogDigestor.DigestClaudeLogsAsync(_pricingCatalog, logDirectory, windowStart, today, cancellationToken).ConfigureAwait(false);
         return BuildDigest(slices, today, DefaultWindowDays);
     }
 
@@ -41,7 +48,19 @@ public sealed class ExpenseAnalyzer
         var today = DateOnly.FromDateTime(DateTime.Now);
         var windowStart = today.AddDays(-(DefaultWindowDays - 1));
 
-        var slices = await LogDigestor.DigestCodexLogsAsync(windowStart, today, cancellationToken).ConfigureAwait(false);
+        var slices = await LogDigestor.DigestCodexLogsAsync(_pricingCatalog, windowStart, today, cancellationToken).ConfigureAwait(false);
+        return BuildDigest(slices, today, DefaultWindowDays);
+    }
+
+    /// <summary>
+    /// Produces a consumption digest for local GitHub Copilot OTEL traces when present.
+    /// </summary>
+    public async Task<ConsumptionDigest> AnalyzeCopilotAsync(CancellationToken cancellationToken = default)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var windowStart = today.AddDays(-(DefaultWindowDays - 1));
+
+        var slices = await CopilotOtelDigestor.DigestAsync(_pricingCatalog, windowStart, today, cancellationToken).ConfigureAwait(false);
         return BuildDigest(slices, today, DefaultWindowDays);
     }
 

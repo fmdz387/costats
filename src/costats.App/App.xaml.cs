@@ -5,11 +5,15 @@ using costats.App.Services;
 using costats.App.Services.Updates;
 using costats.App.ViewModels;
 using costats.Application.Abstractions;
+using costats.Application.Pricing;
 using costats.Application.Pulse;
 using costats.Application.Security;
 using costats.Application.Settings;
 using costats.Application.Shell;
+using costats.Core.Pulse;
+using costats.Infrastructure.Expense;
 using costats.Infrastructure.Providers;
+using costats.Infrastructure.Pricing;
 using costats.Infrastructure.Pulse;
 using costats.Infrastructure.Security;
 using costats.Infrastructure.Settings;
@@ -28,6 +32,7 @@ namespace costats.App
         private IHost? _host;
         private SingleInstanceCoordinator? _singleInstance;
         private StartupUpdateCoordinator? _updateCoordinator;
+        private ThemeService? _themeService;
 
         protected override void OnStartup(System.Windows.StartupEventArgs e)
         {
@@ -83,6 +88,7 @@ namespace costats.App
                 Log.Warning(ex, "Error during host shutdown");
             }
 
+            _themeService?.Dispose();
             _singleInstance?.Dispose();
             Log.CloseAndFlush();
             base.OnExit(e);
@@ -106,7 +112,10 @@ namespace costats.App
 
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    var tray = InitializeHost(settingsStore, settings);
+                    _themeService = new ThemeService(this);
+                    _themeService.ApplyTheme(settings.AppThemeMode);
+
+                    var tray = InitializeHost(settingsStore, settings, _themeService);
                     LogFireAndForget(StartListenerAsync(tray), "SingleInstanceListener");
                     tray.ShowWidget();
                 });
@@ -206,7 +215,82 @@ namespace costats.App
                 TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
 
-        private TrayHost InitializeHost(ISettingsStore settingsStore, AppSettings settings)
+        private static void AddPricingServices(IServiceCollection services)
+        {
+            services.AddOptions<PricingOptions>()
+                .BindConfiguration(PricingOptions.SectionName);
+
+            services.AddHttpClient(LiteLLMPricingClient.HttpClientName, client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            });
+            services.AddHttpClient(OpenRouterPricingClient.HttpClientName, client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            });
+
+            services.AddSingleton<ModelMatcher>();
+            services.AddSingleton<PricingDiskCache>();
+            services.AddSingleton<LiteLLMPricingClient>();
+            services.AddSingleton<OpenRouterPricingClient>();
+            services.AddSingleton<EmbeddedPricingSnapshot>();
+            services.AddSingleton<PricingCatalog>();
+            services.AddSingleton<IPricingCatalog>(sp => sp.GetRequiredService<PricingCatalog>());
+            services.AddSingleton<ExpenseAnalyzer>();
+            services.AddHostedService<PricingRefreshService>();
+        }
+
+        private static void AddSignalSources(IServiceCollection services, AppSettings settings)
+        {
+            services.AddSingleton<ISignalSource, CodexLogSource>();
+            services.AddSingleton<ISignalSource, CopilotPersonalSource>();
+            services.AddSingleton<MulticcConfigReader>();
+
+            var discovery = DiscoverMulticcProfiles(settings);
+            services.AddSingleton<IMulticcDiscovery>(discovery);
+
+            if (!settings.MulticcEnabled || !discovery.IsDetected || discovery.Profiles.Count == 0)
+            {
+                services.AddSingleton<ISignalSource, ClaudeLogSource>();
+                return;
+            }
+
+            if (settings.MulticcSelectedProfile is not null)
+            {
+                var selected = discovery.Profiles.FirstOrDefault(
+                    p => p.Name.Equals(settings.MulticcSelectedProfile, StringComparison.OrdinalIgnoreCase));
+
+                if (selected is not null)
+                {
+                    AddMulticcSource(services, selected);
+                    return;
+                }
+
+                services.AddSingleton<ISignalSource, ClaudeLogSource>();
+                return;
+            }
+
+            foreach (var profile in discovery.Profiles)
+            {
+                AddMulticcSource(services, profile);
+            }
+        }
+
+        private static MulticcDiscoveryService DiscoverMulticcProfiles(AppSettings settings)
+        {
+            var reader = new MulticcConfigReader(NullLogger<MulticcConfigReader>.Instance);
+            return new MulticcDiscoveryService(reader, settings.MulticcConfigPath);
+        }
+
+        private static void AddMulticcSource(IServiceCollection services, MulticcProfile profile)
+        {
+            services.AddSingleton<ISignalSource>(sp =>
+                new MulticcClaudeLogSource(
+                    profile,
+                    sp.GetRequiredService<ExpenseAnalyzer>()));
+        }
+
+        private TrayHost InitializeHost(ISettingsStore settingsStore, AppSettings settings, ThemeService themeService)
         {
             _host = Host.CreateDefaultBuilder()
                 .ConfigureAppConfiguration(config =>
@@ -224,6 +308,7 @@ namespace costats.App
                 {
                     services.AddSingleton<ISettingsStore>(settingsStore);
                     services.AddSingleton(settings);
+                    services.AddSingleton(themeService);
 
                     if (_updateCoordinator is not null)
                     {
@@ -238,53 +323,12 @@ namespace costats.App
                         });
 
                     services.AddSingleton<IClock, SystemClock>();
+                    AddPricingServices(services);
 
                     services.AddSingleton<PulseBroadcaster>();
                     services.AddSingleton<ISourceSelector, SourceSelector>();
                     services.AddSingleton<CopilotUsageFetcher>();
-                    services.AddSingleton<ISignalSource, CodexLogSource>();
-                    services.AddSingleton<ISignalSource, CopilotPersonalSource>();
-                    // Multicc integration: conditionally register per-profile or default Claude source
-                    services.AddSingleton<MulticcConfigReader>();
-
-                    var tempReader = new MulticcConfigReader(
-                        Microsoft.Extensions.Logging.Abstractions.NullLogger<MulticcConfigReader>.Instance);
-                    var discovery = new MulticcDiscoveryService(tempReader, settings.MulticcConfigPath);
-
-                    services.AddSingleton<IMulticcDiscovery>(discovery);
-
-                    if (settings.MulticcEnabled && discovery.IsDetected && discovery.Profiles.Count > 0)
-                    {
-                        if (settings.MulticcSelectedProfile is not null)
-                        {
-                            // Single-profile mode: register one source for the selected profile
-                            var selected = discovery.Profiles
-                                .FirstOrDefault(p => p.Name.Equals(settings.MulticcSelectedProfile, StringComparison.OrdinalIgnoreCase));
-
-                            if (selected is not null)
-                            {
-                                services.AddSingleton<ISignalSource>(new MulticcClaudeLogSource(selected));
-                            }
-                            else
-                            {
-                                // Fallback to default Claude source if selected profile not found
-                                services.AddSingleton<ISignalSource, ClaudeLogSource>();
-                            }
-                        }
-                        else
-                        {
-                            // Stacked mode: register one source per profile
-                            foreach (var profile in discovery.Profiles)
-                            {
-                                services.AddSingleton<ISignalSource>(new MulticcClaudeLogSource(profile));
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // No multicc or disabled: use default Claude source
-                        services.AddSingleton<ISignalSource, ClaudeLogSource>();
-                    }
+                    AddSignalSources(services, settings);
                     services.AddSingleton<IPulseSnapshotWriter, JsonPulseSnapshotWriter>();
                     services.AddSingleton<IPulseOrchestrator, PulseOrchestrator>();
                     services.AddHostedService(sp => (PulseOrchestrator)sp.GetRequiredService<IPulseOrchestrator>());

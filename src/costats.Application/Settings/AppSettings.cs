@@ -2,6 +2,8 @@ namespace costats.Application.Settings;
 
 public sealed class AppSettings
 {
+    public AppThemeMode AppThemeMode { get; set; } = AppThemeMode.System;
+
     public int RefreshMinutes { get; set; } = 5;
     public string Hotkey { get; set; } = "Ctrl+Alt+U";
     public bool StartAtLogin { get; set; } = false;

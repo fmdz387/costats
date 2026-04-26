@@ -22,59 +22,28 @@
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
-        <!-- Light color palette with WCAG AA contrast -->
-        <Color x:Key="BgColor">#F5F3FA</Color>
-        <Color x:Key="TextPrimary">#1E1B2E</Color>
-        <Color x:Key="TextSecondary">#3D3A52</Color>
-        <Color x:Key="TextMuted">#5C5975</Color>
-        <Color x:Key="TextFaint">#6E6B86</Color>
-        <Color x:Key="DividerColor">#D5D2E4</Color>
-        <Color x:Key="AccentColor">#6366F1</Color>
-
-        <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
-        <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
-        <SolidColorBrush x:Key="TextFaintBrush" Color="{StaticResource TextFaint}" />
-        <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource DividerColor}" />
-        <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
-
-        <!-- ComboBox Style -->
-        <Style x:Key="SettingsComboBox" TargetType="ComboBox">
-            <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource DividerBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
+        <!-- ComboBox dropdown item style -->
+        <Style x:Key="SettingsComboBoxItem" TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="Padding" Value="12,8" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-
-        <!-- CheckBox Style -->
-        <Style x:Key="SettingsCheckBox" TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="CheckBox">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Border x:Name="CheckBorder" Width="20" Height="20" CornerRadius="4"
-                                    Background="#FFFFFF" BorderBrush="{StaticResource DividerBrush}" BorderThickness="1"
-                                    VerticalAlignment="Center">
-                                <Path x:Name="CheckMark" Data="M3,7 L7,11 L13,3" Stroke="White" StrokeThickness="2"
-                                      Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                      Width="12" Height="10" Stretch="Uniform" />
-                            </Border>
-                            <ContentPresenter Margin="10,0,0,0" VerticalAlignment="Center" />
-                        </StackPanel>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter />
+                        </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="CheckBorder" Property="Background" Value="{StaticResource AccentBrush}" />
-                                <Setter TargetName="CheckBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource SelectionBackgroundBrush}" />
                             </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="CheckBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource SelectionBackgroundBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource SelectionTextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -82,11 +51,152 @@
             </Setter>
         </Style>
 
-        <!-- Button Style -->
+        <!-- ComboBox field and popup style -->
+        <Style x:Key="SettingsComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource InputForegroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ItemContainerStyle" Value="{StaticResource SettingsComboBoxItem}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Background="{DynamicResource InputBackgroundBrush}"
+                                          Padding="{TemplateBinding Padding}"
+                                          BorderThickness="0">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="ComboBorder"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{DynamicResource InputBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="{TemplateBinding Padding}">
+                                            <DockPanel LastChildFill="True">
+                                                <Path x:Name="Arrow"
+                                                      DockPanel.Dock="Right"
+                                                      Width="10"
+                                                      Height="6"
+                                                      Margin="8,0,0,0"
+                                                      Data="M 0 0 L 5 5 L 10 0"
+                                                      Stroke="{DynamicResource TextMutedBrush}"
+                                                      StrokeThickness="1.5"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      Stretch="Fill"
+                                                      VerticalAlignment="Center" />
+                                                <ContentPresenter Margin="0,0,8,0"
+                                                                  HorizontalAlignment="Left"
+                                                                  VerticalAlignment="Center"
+                                                                  TextElement.Foreground="{DynamicResource InputForegroundBrush}"
+                                                                  Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                  ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                  ContentTemplateSelector="{Binding ItemTemplateSelector, RelativeSource={RelativeSource AncestorType=ComboBox}}" />
+                                            </DockPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <Popup IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Fade">
+                                <Border Margin="0,4,0,0"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        Background="{DynamicResource PopupBackgroundBrush}"
+                                        TextElement.Foreground="{DynamicResource InputForegroundBrush}"
+                                        BorderBrush="{DynamicResource PopupBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="4">
+                                    <ScrollViewer MaxHeight="200" CanContentScroll="True">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- PasswordBox input style -->
+        <Style x:Key="SettingsPasswordBox" TargetType="PasswordBox">
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource InputForegroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimaryBrush}" />
+        </Style>
+
+        <!-- Checkbox style -->
+        <Style x:Key="SettingsCheckBox" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border x:Name="CheckBorder"
+                                    Width="20"
+                                    Height="20"
+                                    CornerRadius="4"
+                                    Background="{DynamicResource InputBackgroundBrush}"
+                                    BorderBrush="{DynamicResource InputBorderBrush}"
+                                    BorderThickness="1"
+                                    VerticalAlignment="Center">
+                                <Path x:Name="CheckMark"
+                                      Data="M3,7 L7,11 L13,3"
+                                      Stroke="White"
+                                      StrokeThickness="2"
+                                      Visibility="Collapsed"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Width="12"
+                                      Height="10"
+                                      Stretch="Uniform" />
+                            </Border>
+                            <ContentPresenter Margin="10,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckBorder" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="CheckBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CheckBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Button style -->
         <Style x:Key="SettingsButton" TargetType="Button">
-            <Setter Property="Background" Value="#0A000000" />
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource DividerBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="16,8" />
             <Setter Property="FontSize" Value="12" />
@@ -94,18 +204,20 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#14000000" />
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource ButtonHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#1E000000" />
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource ButtonPressedBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -114,8 +226,10 @@
         </Style>
     </Window.Resources>
 
-    <Border CornerRadius="16" BorderBrush="#30A0A0C0" BorderThickness="1"
-            Background="#F5F3FA">
+    <Border CornerRadius="16"
+            BorderBrush="{DynamicResource SettingsWindowBorderBrush}"
+            BorderThickness="1"
+            Background="{DynamicResource SettingsWindowBackgroundBrush}">
         <Grid Margin="20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -126,56 +240,97 @@
 
             <!-- Header -->
             <DockPanel Grid.Row="0" Margin="0,0,0,16">
-                <TextBlock Text="Settings" FontSize="18" FontWeight="SemiBold"
-                           Foreground="{StaticResource TextPrimaryBrush}" DockPanel.Dock="Left" />
-                <Button Content="X" Click="OnCloseClick" DockPanel.Dock="Right"
-                        HorizontalAlignment="Right" Width="28" Height="28" Padding="0"
-                        Style="{StaticResource SettingsButton}" FontWeight="SemiBold" />
+                <TextBlock Text="Settings"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           DockPanel.Dock="Left" />
+                <Button Content="X"
+                        Click="OnCloseClick"
+                        DockPanel.Dock="Right"
+                        HorizontalAlignment="Right"
+                        Width="28"
+                        Height="28"
+                        Padding="0"
+                        Style="{StaticResource SettingsButton}"
+                        FontWeight="SemiBold" />
             </DockPanel>
 
             <!-- Divider -->
-            <Border Grid.Row="1" Height="1" Background="{StaticResource DividerBrush}" Margin="0,0,0,16" />
+            <Border Grid.Row="1" Height="1" Background="{DynamicResource DividerBrush}" Margin="0,0,0,16" />
 
-            <!-- Settings Content -->
+            <!-- Settings content -->
             <StackPanel Grid.Row="2">
-
-                <!-- System Section -->
-                <TextBlock Text="SYSTEM" FontSize="10" FontWeight="SemiBold"
-                           Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />
+                <!-- System section -->
+                <TextBlock Text="SYSTEM"
+                           FontSize="10"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           Margin="0,0,0,12" />
 
                 <CheckBox IsChecked="{Binding StartAtLogin}" Style="{StaticResource SettingsCheckBox}" Margin="0,0,0,6">
-                    <TextBlock Text="Start at login" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
+                    <TextBlock Text="Start at login" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                 </CheckBox>
                 <TextBlock Text="Automatically launch costats when Windows starts."
-                           FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="30,0,0,16" />
-
-                <!-- Divider -->
-                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,0,0,16" />
-
-                <!-- Automation Section -->
-                <TextBlock Text="AUTOMATION" FontSize="10" FontWeight="SemiBold"
-                           Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />
+                           FontSize="11"
+                           Foreground="{DynamicResource TextFaintBrush}"
+                           Margin="0,0,0,16" />
 
                 <DockPanel Margin="0,0,0,6">
-                    <TextBlock Text="Refresh interval" FontSize="12"
-                               Foreground="{StaticResource TextPrimaryBrush}" DockPanel.Dock="Left"
+                    <TextBlock Text="Theme"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               DockPanel.Dock="Left"
+                               VerticalAlignment="Center" />
+                    <ComboBox ItemsSource="{Binding ThemeOptions}"
+                              SelectedItem="{Binding SelectedThemeOption}"
+                              Style="{StaticResource SettingsComboBox}"
+                              DockPanel.Dock="Right"
+                              HorizontalAlignment="Right"
+                              Width="120" />
+                </DockPanel>
+                <TextBlock Text="Follow Windows or force the app to stay light or dark."
+                           FontSize="11"
+                           Foreground="{DynamicResource TextFaintBrush}"
+                           Margin="0,0,0,0" />
+
+                <!-- Divider -->
+                <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,16,0,16" />
+
+                <!-- Automation section -->
+                <TextBlock Text="AUTOMATION"
+                           FontSize="10"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           Margin="0,0,0,12" />
+
+                <DockPanel Margin="0,0,0,6">
+                    <TextBlock Text="Refresh interval"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               DockPanel.Dock="Left"
                                VerticalAlignment="Center" />
                     <ComboBox ItemsSource="{Binding RefreshOptions}"
                               SelectedItem="{Binding SelectedRefreshOption}"
                               Style="{StaticResource SettingsComboBox}"
-                              DockPanel.Dock="Right" HorizontalAlignment="Right" Width="120" />
+                              DockPanel.Dock="Right"
+                              HorizontalAlignment="Right"
+                              Width="120" />
                 </DockPanel>
                 <TextBlock Text="How often costats polls for usage data in the background."
-                           FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="0,0,0,0" />
+                           FontSize="11"
+                           Foreground="{DynamicResource TextFaintBrush}" />
 
                 <!-- Divider -->
-                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,16,0,16" />
+                <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,16,0,16" />
 
-                <!-- Claude Code / Multicc Section -->
-                <TextBlock Text="CLAUDE CODE" FontSize="10" FontWeight="SemiBold"
-                           Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />
+                <!-- Claude Code section -->
+                <TextBlock Text="CLAUDE CODE"
+                           FontSize="10"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           Margin="0,0,0,12" />
 
-                <!-- Shown when multicc is detected -->
                 <StackPanel>
                     <StackPanel.Style>
                         <Style TargetType="StackPanel">
@@ -188,13 +343,13 @@
                         </Style>
                     </StackPanel.Style>
                     <CheckBox IsChecked="{Binding MulticcEnabled}" Style="{StaticResource SettingsCheckBox}" Margin="0,0,0,6">
-                        <TextBlock Text="Use multicc profiles" FontSize="12"
-                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                        <TextBlock Text="Use multicc profiles" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                     </CheckBox>
                     <TextBlock Text="Automatically detect and display all multicc profiles in the Claude tab."
-                               FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="30,0,0,12" />
+                               FontSize="11"
+                               Foreground="{DynamicResource TextFaintBrush}"
+                               Margin="30,0,0,12" />
 
-                    <!-- Profile count info (visible when multicc enabled) -->
                     <StackPanel>
                         <StackPanel.Style>
                             <Style TargetType="StackPanel">
@@ -206,18 +361,20 @@
                                 </Style.Triggers>
                             </Style>
                         </StackPanel.Style>
-                        <TextBlock FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="0,0,0,4">
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextFaintBrush}" Margin="0,0,0,4">
                             <Run Text="Profiles found:" />
                             <Run Text="{Binding MulticcProfileCount, Mode=OneWay}" FontWeight="SemiBold" />
                         </TextBlock>
                     </StackPanel>
 
                     <!-- Restart message -->
-                    <TextBlock Text="{Binding MulticcRestartMessage}" FontSize="11" Foreground="#F97316" Margin="0,8,0,0"
+                    <TextBlock Text="{Binding MulticcRestartMessage}"
+                               FontSize="11"
+                               Foreground="{DynamicResource WarningBrush}"
+                               Margin="0,8,0,0"
                                Visibility="{Binding MulticcRestartMessage, Converter={x:Static local:StringToVisibilityConverter.Instance}}" />
                 </StackPanel>
 
-                <!-- Shown when multicc is NOT detected -->
                 <StackPanel>
                     <StackPanel.Style>
                         <Style TargetType="StackPanel">
@@ -230,28 +387,42 @@
                         </Style>
                     </StackPanel.Style>
                     <TextBlock Text="multicc not detected. Install multicc to manage multiple Claude Code accounts."
-                               FontSize="11" Foreground="{StaticResource TextFaintBrush}" TextWrapping="Wrap" />
+                               FontSize="11"
+                               Foreground="{DynamicResource TextFaintBrush}"
+                               TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- Divider -->
-                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,16,0,16" />
+                <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,16,0,16" />
 
-                <!-- Copilot Section -->
-                <TextBlock Text="COPILOT" FontSize="10" FontWeight="SemiBold"
-                           Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />
+                <!-- Copilot section -->
+                <TextBlock Text="COPILOT"
+                           FontSize="10"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           Margin="0,0,0,12" />
 
                 <CheckBox IsChecked="{Binding CopilotEnabled}" Style="{StaticResource SettingsCheckBox}" Margin="0,0,0,6">
-                    <TextBlock Text="Enable GitHub Copilot usage" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
+                    <TextBlock Text="Enable GitHub Copilot usage" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                 </CheckBox>
                 <TextBlock Text="Connect a GitHub personal access token to fetch usage data."
-                           FontSize="11" Foreground="{StaticResource TextFaintBrush}" Margin="30,0,0,12" TextWrapping="Wrap" />
+                           FontSize="11"
+                           Foreground="{DynamicResource TextFaintBrush}"
+                           Margin="0,0,0,12"
+                           TextWrapping="Wrap" />
 
-                <TextBlock Text="Personal access token" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
+                <TextBlock Text="Personal access token" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
                 <Grid Margin="0,6,0,8">
-                    <PasswordBox x:Name="CopilotTokenBox" Height="28"
+                    <PasswordBox x:Name="CopilotTokenBox"
+                                 Style="{StaticResource SettingsPasswordBox}"
                                  IsEnabled="{Binding IsCopilotTokenBusy, Converter={x:Static local:BoolNegationConverter.Instance}}" />
-                    <TextBlock Text="********" FontSize="12" Foreground="{StaticResource TextFaintBrush}" Margin="10,0,10,0"
-                               HorizontalAlignment="Left" VerticalAlignment="Center" IsHitTestVisible="False">
+                    <TextBlock Text="********"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextFaintBrush}"
+                               Margin="10,0,10,0"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               IsHitTestVisible="False">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -273,6 +444,7 @@
                             Click="OnSaveCopilotTokenClick"
                             IsEnabled="{Binding IsCopilotTokenBusy, Converter={x:Static local:BoolNegationConverter.Instance}}"
                             Style="{StaticResource SettingsButton}"
+                            Margin="0,0,6,0"
                             DockPanel.Dock="Left" />
                     <Button Content="Clear token"
                             Command="{Binding ClearCopilotTokenCommand}"
@@ -281,7 +453,9 @@
                             DockPanel.Dock="Right" />
                 </DockPanel>
 
-                <TextBlock Text="{Binding CopilotTokenStatus}" FontSize="11" Foreground="{StaticResource TextFaintBrush}"
+                <TextBlock Text="{Binding CopilotTokenStatus}"
+                           FontSize="11"
+                           Foreground="{DynamicResource TextFaintBrush}"
                            Visibility="{Binding CopilotTokenStatus, Converter={x:Static local:StringToVisibilityConverter.Instance}}" />
 
                 <!-- Divider -->
@@ -289,7 +463,7 @@
 
                 <!-- Updates Section -->
                 <TextBlock Text="UPDATES" FontSize="10" FontWeight="SemiBold"
-                           Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12" />
+                           Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,0" />
 
                 <DockPanel>
                     <Button Content="Check for updates"
@@ -307,15 +481,19 @@
 
             <!-- Footer -->
             <StackPanel Grid.Row="3" Margin="0,16,0,0">
-                <Border Height="1" Background="{StaticResource DividerBrush}" Margin="0,0,0,12" />
+                <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,0,0,12" />
                 <DockPanel>
                     <TextBlock Text="{Binding Version, StringFormat='v{0}'}"
-                               FontSize="11" Foreground="{StaticResource TextMutedBrush}"
-                               DockPanel.Dock="Right" HorizontalAlignment="Right"
+                               FontSize="11"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               DockPanel.Dock="Right"
+                               HorizontalAlignment="Right"
                                VerticalAlignment="Center" />
                     <TextBlock Text="Changes are saved automatically."
-                               FontSize="11" Foreground="{StaticResource TextFaintBrush}"
-                               DockPanel.Dock="Left" VerticalAlignment="Center" />
+                               FontSize="11"
+                               Foreground="{DynamicResource TextFaintBrush}"
+                               DockPanel.Dock="Left"
+                               VerticalAlignment="Center" />
                 </DockPanel>
             </StackPanel>
         </Grid>

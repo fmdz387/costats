@@ -18,13 +18,14 @@ public sealed class MulticcClaudeLogSource : ISignalSource, IDisposable
     private readonly MulticcProfile _profile;
     private readonly UsageLogScanner _scanner = new();
     private readonly ClaudeOAuthUsageFetcher _oauthFetcher;
-    private readonly ExpenseAnalyzer _expenseAnalyzer = new();
+    private readonly ExpenseAnalyzer _expenseAnalyzer;
     private readonly string _logDirectory;
 
-    public MulticcClaudeLogSource(MulticcProfile profile)
+    public MulticcClaudeLogSource(MulticcProfile profile, ExpenseAnalyzer expenseAnalyzer)
     {
         _profile = profile;
         _oauthFetcher = new ClaudeOAuthUsageFetcher(profile.ConfigDir);
+        _expenseAnalyzer = expenseAnalyzer;
         _logDirectory = Path.Combine(profile.ConfigDir, "projects");
     }
 

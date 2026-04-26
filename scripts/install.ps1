@@ -27,7 +27,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$repo = "fmdz387/costats"
+$repo = "RileyCornelius/costats"
 $apiUrl = "https://api.github.com/repos/$repo/releases/latest"
 
 function Get-ArchRid {

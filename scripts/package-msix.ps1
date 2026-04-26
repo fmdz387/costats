@@ -54,8 +54,8 @@ param(
     [ValidateSet("Release", "Debug")]
     [string]$Configuration = "Release",
     [string]$Publisher = "CN=costats",
-    [string]$PublisherDisplayName = "fmdz",
-    [string]$PackageName = "fmdz387.costats",
+    [string]$PublisherDisplayName = "Riley Cornelius",
+    [string]$PackageName = "RileyCornelius.costats",
     [string]$DisplayName = "costats",
     [string]$Description = "Usage statistics for Claude and Codex AI coding assistants",
     [string]$AppInstallerUri,

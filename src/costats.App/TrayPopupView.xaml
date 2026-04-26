@@ -3,7 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Height="260"
              Width="320">
-    <Border CornerRadius="12" Background="#FDFDFD" Padding="12">
+    <!-- Popup container -->
+    <Border CornerRadius="12"
+            Background="{DynamicResource PopupBackgroundBrush}"
+            BorderBrush="{DynamicResource PopupBorderBrush}"
+            BorderThickness="1"
+            Padding="12">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -11,24 +16,42 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Text="costats" FontSize="16" FontWeight="SemiBold" Foreground="#222222" />
+            <!-- Header -->
+            <TextBlock Text="costats"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
 
+            <!-- Provider list -->
             <ItemsControl Grid.Row="1" Margin="0,12,0,12" ItemsSource="{Binding Providers}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Margin="0,0,0,8">
-                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" Foreground="#222222" />
-                            <TextBlock Text="{Binding StatusSummary}" Foreground="#666666" FontSize="12" />
+                            <TextBlock Text="{Binding DisplayName}"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding StatusSummary}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       FontSize="12" />
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Session: " Foreground="#666666" FontSize="11" />
-                                <TextBlock Text="{Binding SessionText}" Foreground="#222222" FontSize="11" />
+                                <TextBlock Text="Session: "
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="11" />
+                                <TextBlock Text="{Binding SessionText}"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           FontSize="11" />
                             </StackPanel>
                         </StackPanel>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <TextBlock Grid.Row="2" Text="{Binding LastUpdated}" Foreground="#888888" FontSize="11" HorizontalAlignment="Right" />
+            <!-- Footer timestamp -->
+            <TextBlock Grid.Row="2"
+                       Text="{Binding LastUpdated}"
+                       Foreground="{DynamicResource TextFaintBrush}"
+                       FontSize="11"
+                       HorizontalAlignment="Right" />
         </Grid>
     </Border>
 </UserControl>

@@ -1,0 +1,42 @@
+[
+  {
+    "provider": "anthropic",
+    "model": "claude-opus-4-7",
+    "standardInput": 12000,
+    "cachedInput": 9000,
+    "cacheWriteInput": 4000,
+    "generatedOutput": 2000
+  },
+  {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-5",
+    "standardInput": 150000,
+    "cachedInput": 150000,
+    "cacheWriteInput": 150000,
+    "generatedOutput": 150000
+  },
+  {
+    "provider": "anthropic",
+    "model": "claude-haiku-4-5",
+    "standardInput": 30000,
+    "cachedInput": 12000,
+    "cacheWriteInput": 6000,
+    "generatedOutput": 3000
+  },
+  {
+    "provider": "openai",
+    "model": "gpt-5",
+    "standardInput": 50000,
+    "cachedInput": 10000,
+    "cacheWriteInput": 0,
+    "generatedOutput": 5000
+  },
+  {
+    "provider": "openai",
+    "model": "gpt-5-codex",
+    "standardInput": 70000,
+    "cachedInput": 25000,
+    "cacheWriteInput": 0,
+    "generatedOutput": 6000
+  }
+]

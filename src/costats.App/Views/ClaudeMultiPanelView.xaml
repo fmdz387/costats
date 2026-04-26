@@ -4,23 +4,12 @@
              xmlns:local="clr-namespace:costats.App">
 
     <UserControl.Resources>
-        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1E1B2E" />
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#4A4760" />
-        <SolidColorBrush x:Key="TextMutedBrush" Color="#7A7890" />
-        <SolidColorBrush x:Key="TextFaintBrush" Color="#9A98A8" />
-        <SolidColorBrush x:Key="TrackBrush" Color="#D8D5E8" />
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
 
-        <!-- Fixed accent colors matching the single-provider Codex tab -->
-        <SolidColorBrush x:Key="SessionBarBrush" Color="#F59E0B" />
-        <SolidColorBrush x:Key="SessionTextBrush" Color="#B45309" />
-        <SolidColorBrush x:Key="WeeklyBarBrush" Color="#8B5CF6" />
-        <SolidColorBrush x:Key="WeeklyTextBrush" Color="#6D28D9" />
-
-        <!-- Progress bar: 7px, fully rounded -->
+        <!-- Progress bar style -->
         <Style x:Key="MetricProgressBar" TargetType="ProgressBar">
             <Setter Property="Height" Value="7" />
-            <Setter Property="Background" Value="{StaticResource TrackBrush}" />
+            <Setter Property="Background" Value="{DynamicResource TrackBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -44,19 +33,24 @@
     </UserControl.Resources>
 
     <StackPanel>
-        <!-- Summary bar: health breakdown -->
-        <Border Padding="12,8" Margin="0,0,0,0" CornerRadius="6" Background="#0A6366F1">
+        <!-- Summary bar -->
+        <Border Padding="12,8" Margin="0,0,0,0" CornerRadius="6" Background="{DynamicResource SummaryBackgroundBrush}">
             <DockPanel>
-                <TextBlock Text="{Binding UpdatedLabel}" FontSize="10.5"
-                           Foreground="{StaticResource TextFaintBrush}"
-                           DockPanel.Dock="Right" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding MulticcSummary}" FontSize="11.5" FontWeight="SemiBold"
-                           Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"
+                <TextBlock Text="{Binding UpdatedLabel}"
+                           FontSize="10.5"
+                           Foreground="{DynamicResource TextFaintBrush}"
+                           DockPanel.Dock="Right"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding MulticcSummary}"
+                           FontSize="11.5"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           VerticalAlignment="Center"
                            AutomationProperties.Name="Multicc profile summary" />
             </DockPanel>
         </Border>
 
-        <!-- Scrollable stacked profile sections (window height constrains viewport) -->
+        <!-- Scrollable profile list -->
         <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
             <StackPanel>
                 <ItemsControl ItemsSource="{Binding ClaudeProfiles}" Focusable="False">
@@ -64,148 +58,185 @@
                         <DataTemplate>
                             <StackPanel Margin="0,0,0,0"
                                         AutomationProperties.Name="{Binding DisplayName}">
-
-                                <!-- Faded elegant separator (equal 10px above and below) -->
+                                <!-- Profile separator -->
                                 <Border Height="1" Margin="0,10,0,10">
                                     <Border.Background>
                                         <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
                                             <GradientStop Color="Transparent" Offset="0" />
-                                            <GradientStop Color="#40D0CDE0" Offset="0.1" />
-                                            <GradientStop Color="#40D0CDE0" Offset="0.9" />
+                                            <GradientStop Color="{DynamicResource DividerSoftColor}" Offset="0.1" />
+                                            <GradientStop Color="{DynamicResource DividerSoftColor}" Offset="0.9" />
                                             <GradientStop Color="Transparent" Offset="1" />
                                         </LinearGradientBrush>
                                     </Border.Background>
                                 </Border>
 
-                                <!-- HEADER: profile name + Claude-styled plan pill -->
+                                <!-- Profile header -->
                                 <DockPanel Margin="0,0,0,8">
-                                    <!-- Plan pill (Claude orange, right-aligned) -->
-                                    <Border DockPanel.Dock="Right" CornerRadius="4" Padding="6,2"
+                                    <Border DockPanel.Dock="Right"
+                                            CornerRadius="4"
+                                            Padding="6,2"
                                             VerticalAlignment="Center"
-                                            BorderBrush="#F97316" BorderThickness="1">
-                                        <Border.Background>
-                                            <SolidColorBrush Color="#F97316" Opacity="0.12" />
-                                        </Border.Background>
-                                        <TextBlock Text="{Binding PlanText}" FontSize="9.5" FontWeight="SemiBold"
-                                                   Foreground="#C2410C" />
+                                            BorderBrush="{DynamicResource ClaudeAccent}"
+                                            Background="{DynamicResource ClaudeChipBackgroundBrush}"
+                                            BorderThickness="1">
+                                        <TextBlock Text="{Binding PlanText}"
+                                                   FontSize="9.5"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource ClaudeChipTextBrush}" />
                                     </Border>
 
-                                    <!-- Profile name -->
-                                    <TextBlock Text="{Binding DisplayName}" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis" />
                                 </DockPanel>
 
-                                <!-- SESSION METRIC -->
+                                <!-- Session metric -->
                                 <StackPanel Margin="0,0,0,8">
-                                    <!-- Line 1: label left, hero percentage right -->
                                     <DockPanel>
-                                        <TextBlock Text="Session" FontSize="11" FontWeight="Medium"
-                                                   Foreground="{StaticResource TextMutedBrush}"
+                                        <TextBlock Text="Session"
+                                                   FontSize="11"
+                                                   FontWeight="Medium"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
                                                    VerticalAlignment="Bottom" />
-                                        <TextBlock Text="{Binding SessionPercentText}" FontSize="20" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource SessionTextBrush}"
-                                                   DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                                        <TextBlock Text="{Binding SessionPercentText}"
+                                                   FontSize="20"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SessionMetricTextBrush}"
+                                                   DockPanel.Dock="Right"
+                                                   HorizontalAlignment="Right" />
                                     </DockPanel>
-                                    <!-- Line 2: full-width bar + reset text -->
                                     <DockPanel Margin="0,4,0,0">
-                                        <TextBlock Text="{Binding SessionResetText}" FontSize="10"
-                                                   Foreground="{StaticResource TextFaintBrush}"
-                                                   DockPanel.Dock="Right" VerticalAlignment="Center"
+                                        <TextBlock Text="{Binding SessionResetText}"
+                                                   FontSize="10"
+                                                   Foreground="{DynamicResource TextFaintBrush}"
+                                                   DockPanel.Dock="Right"
+                                                   VerticalAlignment="Center"
                                                    Margin="10,0,0,0"
-                                                   TextTrimming="CharacterEllipsis" MaxWidth="100" />
-                                        <ProgressBar Value="{Binding SessionProgress}" Maximum="1"
-                                                     Foreground="{StaticResource SessionBarBrush}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxWidth="100" />
+                                        <ProgressBar Value="{Binding SessionProgress}"
+                                                     Maximum="1"
+                                                     Foreground="{StaticResource SessionAccent}"
                                                      Style="{StaticResource MetricProgressBar}"
                                                      VerticalAlignment="Center"
                                                      AutomationProperties.Name="{Binding SessionUsageLabel}" />
                                     </DockPanel>
                                 </StackPanel>
 
-                                <!-- WEEKLY METRIC -->
+                                <!-- Weekly metric -->
                                 <StackPanel>
                                     <DockPanel>
-                                        <TextBlock Text="Weekly" FontSize="11" FontWeight="Medium"
-                                                   Foreground="{StaticResource TextMutedBrush}"
+                                        <TextBlock Text="Weekly"
+                                                   FontSize="11"
+                                                   FontWeight="Medium"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
                                                    VerticalAlignment="Bottom" />
-                                        <TextBlock Text="{Binding WeekPercentText}" FontSize="20" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource WeeklyTextBrush}"
-                                                   DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                                        <TextBlock Text="{Binding WeekPercentText}"
+                                                   FontSize="20"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource WeeklyMetricTextBrush}"
+                                                   DockPanel.Dock="Right"
+                                                   HorizontalAlignment="Right" />
                                     </DockPanel>
                                     <DockPanel Margin="0,4,0,0">
-                                        <TextBlock Text="{Binding WeekResetText}" FontSize="10"
-                                                   Foreground="{StaticResource TextFaintBrush}"
-                                                   DockPanel.Dock="Right" VerticalAlignment="Center"
+                                        <TextBlock Text="{Binding WeekResetText}"
+                                                   FontSize="10"
+                                                   Foreground="{DynamicResource TextFaintBrush}"
+                                                   DockPanel.Dock="Right"
+                                                   VerticalAlignment="Center"
                                                    Margin="10,0,0,0"
-                                                   TextTrimming="CharacterEllipsis" MaxWidth="100" />
-                                        <ProgressBar Value="{Binding WeekProgress}" Maximum="1"
-                                                     Foreground="{StaticResource WeeklyBarBrush}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxWidth="100" />
+                                        <ProgressBar Value="{Binding WeekProgress}"
+                                                     Maximum="1"
+                                                     Foreground="{StaticResource WeeklyAccent}"
                                                      Style="{StaticResource MetricProgressBar}"
                                                      VerticalAlignment="Center"
                                                      AutomationProperties.Name="{Binding WeekUsageLabel}" />
                                     </DockPanel>
                                 </StackPanel>
 
-                                <!-- COST FOOTER -->
-                                <TextBlock Text="{Binding CompactCostText}" FontSize="10.5"
-                                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,0,0"
+                                <!-- Compact cost summary -->
+                                <TextBlock Text="{Binding CompactCostText}"
+                                           FontSize="10.5"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Margin="0,6,0,0"
                                            Visibility="{Binding HasCompactCost, Converter={StaticResource BoolToVisibilityConverter}}" />
 
-                                <!-- OVERAGE / BALANCE FOOTER -->
-                                <TextBlock Text="{Binding ExtraUsageLabel}" FontSize="10.5"
-                                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"
+                                <!-- Extra usage summary -->
+                                <TextBlock Text="{Binding ExtraUsageLabel}"
+                                           FontSize="10.5"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Margin="0,2,0,0"
                                            Visibility="{Binding HasExtraUsage, Converter={StaticResource BoolToVisibilityConverter}}" />
-
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <!-- AGGREGATE TOTALS across all profiles -->
+                <!-- Aggregate totals -->
                 <StackPanel Visibility="{Binding HasMulticcTotals, Converter={StaticResource BoolToVisibilityConverter}}"
                             Margin="0,6,0,4">
-                    <!-- Separator -->
+                    <!-- Totals separator -->
                     <Border Height="1" Margin="0,8,0,12">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
                                 <GradientStop Color="Transparent" Offset="0" />
-                                <GradientStop Color="#60D0CDE0" Offset="0.1" />
-                                <GradientStop Color="#60D0CDE0" Offset="0.9" />
+                                <GradientStop Color="{DynamicResource DividerStrongColor}" Offset="0.1" />
+                                <GradientStop Color="{DynamicResource DividerStrongColor}" Offset="0.9" />
                                 <GradientStop Color="Transparent" Offset="1" />
                             </LinearGradientBrush>
                         </Border.Background>
                     </Border>
 
-                    <TextBlock Text="All Profiles" FontSize="12" FontWeight="SemiBold"
-                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8" />
+                    <TextBlock Text="All Profiles"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               Margin="0,0,0,8" />
 
-                    <!-- Today row -->
+                    <!-- Today totals -->
                     <DockPanel Margin="0,0,0,5">
-                        <TextBlock Text="Today:" FontSize="11"
-                                   Foreground="{StaticResource TextSecondaryBrush}" DockPanel.Dock="Left" />
+                        <TextBlock Text="Today:"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   DockPanel.Dock="Left" />
                         <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                            <TextBlock Text="{Binding MulticcTotalTodayCost}" FontSize="11" FontWeight="SemiBold"
-                                       Foreground="#065F46" />
-                            <TextBlock Text="  ·  " FontSize="11" Foreground="{StaticResource TextMutedBrush}" />
-                            <TextBlock Text="{Binding MulticcTotalTodayTokens}" FontSize="11"
-                                       Foreground="{StaticResource TextSecondaryBrush}" />
-                            <TextBlock Text=" tokens" FontSize="11"
-                                       Foreground="{StaticResource TextMutedBrush}" />
+                            <TextBlock Text="{Binding MulticcTotalTodayCost}"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource CostTodayAccentBrush}" />
+                            <TextBlock Text="  ·  " FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                            <TextBlock Text="{Binding MulticcTotalTodayTokens}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text=" tokens"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
                         </StackPanel>
                     </DockPanel>
 
-                    <!-- This week row -->
+                    <!-- Weekly totals -->
                     <DockPanel>
-                        <TextBlock Text="This week:" FontSize="11"
-                                   Foreground="{StaticResource TextSecondaryBrush}" DockPanel.Dock="Left" />
+                        <TextBlock Text="This week:"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   DockPanel.Dock="Left" />
                         <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                            <TextBlock Text="{Binding MulticcTotalWeekCost}" FontSize="11" FontWeight="SemiBold"
-                                       Foreground="#3730A3" />
-                            <TextBlock Text="  ·  " FontSize="11" Foreground="{StaticResource TextMutedBrush}" />
-                            <TextBlock Text="{Binding MulticcTotalWeekTokens}" FontSize="11"
-                                       Foreground="{StaticResource TextSecondaryBrush}" />
-                            <TextBlock Text=" tokens" FontSize="11"
-                                       Foreground="{StaticResource TextMutedBrush}" />
+                            <TextBlock Text="{Binding MulticcTotalWeekCost}"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource CostMonthAccentBrush}" />
+                            <TextBlock Text="  ·  " FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                            <TextBlock Text="{Binding MulticcTotalWeekTokens}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text=" tokens"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
                         </StackPanel>
                     </DockPanel>
                 </StackPanel>

@@ -2,6 +2,7 @@ using costats.Application.Pulse;
 using costats.Application.Security;
 using costats.Application.Settings;
 using costats.Core.Pulse;
+using costats.Infrastructure.Expense;
 using Microsoft.Extensions.Logging;
 using static costats.Core.Pulse.UsageFormatter;
 
@@ -12,17 +13,20 @@ public sealed class CopilotPersonalSource : ISignalSource
     private readonly AppSettings _settings;
     private readonly ICredentialVault _credentialVault;
     private readonly CopilotUsageFetcher _fetcher;
+    private readonly ExpenseAnalyzer _expenseAnalyzer;
     private readonly ILogger<CopilotPersonalSource> _logger;
 
     public CopilotPersonalSource(
         AppSettings settings,
         ICredentialVault credentialVault,
         CopilotUsageFetcher fetcher,
+        ExpenseAnalyzer expenseAnalyzer,
         ILogger<CopilotPersonalSource> logger)
     {
         _settings = settings;
         _credentialVault = credentialVault;
         _fetcher = fetcher;
+        _expenseAnalyzer = expenseAnalyzer;
         _logger = logger;
     }
 
@@ -46,7 +50,9 @@ public sealed class CopilotPersonalSource : ISignalSource
         try
         {
             var token = await _credentialVault.LoadAsync(CredentialKeys.CopilotToken, cancellationToken).ConfigureAwait(false);
+            var consumptionTask = SafeAnalyzeExpenseAsync(cancellationToken);
             var result = await _fetcher.FetchAsync(token, cancellationToken).ConfigureAwait(false);
+            var consumption = await consumptionTask.ConfigureAwait(false);
 
             var identity = new IdentityCard(
                 Profile.ProviderId,
@@ -59,12 +65,22 @@ public sealed class CopilotPersonalSource : ISignalSource
             if (result.Status != CopilotFetchStatus.Success || result.Payload is null)
             {
                 return new ProviderReading(
-                    Usage: null,
+                    Usage: consumption is null ? null : new UsagePulse(
+                        ProviderId: Profile.ProviderId,
+                        CapturedAt: consumption.ComputedAt,
+                        SessionUsed: null,
+                        SessionLimit: null,
+                        WeekUsed: null,
+                        WeekLimit: null,
+                        SpendingBucket: null,
+                        Consumption: consumption,
+                        SessionWindow: null,
+                        WeekWindow: null),
                     Identity: identity,
                     StatusSummary: result.StatusSummary,
                     CapturedAt: now,
-                    Confidence: ReadingConfidence.Low,
-                    Source: ReadingSource.Api);
+                    Confidence: consumption is null ? ReadingConfidence.Low : ReadingConfidence.Medium,
+                    Source: consumption is null ? ReadingSource.Api : ReadingSource.LocalLog);
             }
 
             var premium = result.Payload.Premium;
@@ -122,7 +138,7 @@ public sealed class CopilotPersonalSource : ISignalSource
                 WeekUsed: weekUsed,
                 WeekLimit: weekLimit,
                 SpendingBucket: null,
-                Consumption: null,
+                Consumption: consumption,
                 SessionWindow: sessionWindow,
                 WeekWindow: weekWindow);
 
@@ -198,5 +214,19 @@ public sealed class CopilotPersonalSource : ISignalSource
             .Select(word => word.Length > 0
                 ? char.ToUpper(word[0]) + word[1..].ToLower()
                 : word));
+    }
+
+    private async Task<ConsumptionDigest?> SafeAnalyzeExpenseAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var digest = await _expenseAnalyzer.AnalyzeCopilotAsync(cancellationToken).ConfigureAwait(false);
+            return digest.DailyBreakdown.Count == 0 ? null : digest;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Copilot OTEL consumption unavailable");
+            return null;
+        }
     }
 }

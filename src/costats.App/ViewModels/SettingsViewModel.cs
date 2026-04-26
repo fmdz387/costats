@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using costats.App.Services;
 using costats.App.Services.Updates;
 using costats.Application.Pulse;
 using costats.Application.Security;
@@ -21,6 +22,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IPulseOrchestrator _pulseOrchestrator;
     private readonly ICredentialVault _credentialVault;
     private readonly CopilotUsageFetcher _copilotFetcher;
+    private readonly ThemeService _themeService;
     private readonly StartupUpdateCoordinator? _updateCoordinator;
     private readonly IMulticcDiscovery? _multiccDiscovery;
     private const string StartupRegistryKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
@@ -31,6 +33,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         AppSettings settings,
         IPulseOrchestrator pulseOrchestrator,
         ICredentialVault credentialVault,
+        ThemeService themeService,
         CopilotUsageFetcher copilotFetcher,
         StartupUpdateCoordinator? updateCoordinator = null,
         IMulticcDiscovery? multiccDiscovery = null)
@@ -39,10 +42,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings = settings;
         _pulseOrchestrator = pulseOrchestrator;
         _credentialVault = credentialVault;
+        _themeService = themeService;
         _copilotFetcher = copilotFetcher;
         _updateCoordinator = updateCoordinator;
         _multiccDiscovery = multiccDiscovery;
 
+        appThemeMode = settings.AppThemeMode;
         refreshMinutes = settings.RefreshMinutes;
         startAtLogin = GetStartupRegistryValue();
 
@@ -55,6 +60,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         copilotEnabled = settings.CopilotEnabled;
         _ = LoadCopilotTokenStatusAsync();
     }
+
+    [ObservableProperty]
+    private AppThemeMode appThemeMode;
 
     [ObservableProperty]
     private int refreshMinutes;
@@ -116,6 +124,26 @@ public sealed partial class SettingsViewModel : ObservableObject
         new RefreshOption(15, "15 minutes"),
     };
 
+    public static IReadOnlyList<ThemeOption> ThemeOptions { get; } = new[]
+    {
+        new ThemeOption(AppThemeMode.System, "System"),
+        new ThemeOption(AppThemeMode.Light, "Light"),
+        new ThemeOption(AppThemeMode.Dark, "Dark"),
+    };
+
+    public ThemeOption SelectedThemeOption
+    {
+        get => ThemeOptions.FirstOrDefault(option => option.Mode == AppThemeMode) ?? ThemeOptions[0];
+        set
+        {
+            if (value is not null && AppThemeMode != value.Mode)
+            {
+                AppThemeMode = value.Mode;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     public RefreshOption SelectedRefreshOption
     {
         get => RefreshOptions.FirstOrDefault(o => o.Minutes == RefreshMinutes) ?? RefreshOptions[3];
@@ -127,6 +155,14 @@ public sealed partial class SettingsViewModel : ObservableObject
                 OnPropertyChanged();
             }
         }
+    }
+
+    partial void OnAppThemeModeChanged(AppThemeMode value)
+    {
+        _settings.AppThemeMode = value;
+        _themeService.ApplyTheme(value);
+        _ = SaveSettingsAsync();
+        OnPropertyChanged(nameof(SelectedThemeOption));
     }
 
     partial void OnRefreshMinutesChanged(int value)
@@ -355,6 +391,11 @@ public sealed partial class SettingsViewModel : ObservableObject
 }
 
 public sealed record RefreshOption(int Minutes, string Label)
+{
+    public override string ToString() => Label;
+}
+
+public sealed record ThemeOption(AppThemeMode Mode, string Label)
 {
     public override string ToString() => Label;
 }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using costats.Application.Settings;
 
 namespace costats.Infrastructure.Settings;
@@ -9,6 +10,11 @@ public sealed class JsonSettingsStore : ISettingsStore
     {
         WriteIndented = true
     };
+
+    public JsonSettingsStore()
+    {
+        _serializerOptions.Converters.Add(new JsonStringEnumConverter());
+    }
 
     public async Task<AppSettings> LoadAsync(CancellationToken cancellationToken)
     {

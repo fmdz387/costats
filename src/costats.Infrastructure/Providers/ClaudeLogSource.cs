@@ -13,7 +13,12 @@ public sealed class ClaudeLogSource : ISignalSource
 
     private readonly UsageLogScanner _scanner = new();
     private readonly ClaudeOAuthUsageFetcher _oauthFetcher = new();
-    private readonly ExpenseAnalyzer _expenseAnalyzer = new();
+    private readonly ExpenseAnalyzer _expenseAnalyzer;
+
+    public ClaudeLogSource(ExpenseAnalyzer expenseAnalyzer)
+    {
+        _expenseAnalyzer = expenseAnalyzer;
+    }
 
     public ProviderProfile Profile => ProviderCatalog.Claude;
 

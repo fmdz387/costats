@@ -13,7 +13,12 @@ public sealed class CodexLogSource : ISignalSource
 
     private readonly UsageLogScanner _scanner = new();
     private readonly CodexOAuthUsageFetcher _oauthFetcher = new();
-    private readonly ExpenseAnalyzer _expenseAnalyzer = new();
+    private readonly ExpenseAnalyzer _expenseAnalyzer;
+
+    public CodexLogSource(ExpenseAnalyzer expenseAnalyzer)
+    {
+        _expenseAnalyzer = expenseAnalyzer;
+    }
 
     public ProviderProfile Profile => ProviderCatalog.Codex;
 

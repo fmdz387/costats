@@ -5,7 +5,7 @@ namespace costats.App.Services.Updates;
 public sealed class UpdateOptions
 {
     public bool Enabled { get; init; } = true;
-    public string Repository { get; init; } = "fmdz387/costats";
+    public string Repository { get; init; } = "RileyCornelius/costats";
     public int CheckIntervalHours { get; init; } = 6;
     public bool AllowPrerelease { get; init; } = false;
     public bool ApplyStagedUpdateOnStartup { get; init; } = true;
@@ -17,7 +17,7 @@ public sealed class UpdateOptions
         return new UpdateOptions
         {
             Enabled = GetBool(section["Enabled"], defaultValue: true),
-            Repository = string.IsNullOrWhiteSpace(section["Repository"]) ? "fmdz387/costats" : section["Repository"]!.Trim(),
+            Repository = string.IsNullOrWhiteSpace(section["Repository"]) ? "RileyCornelius/costats" : section["Repository"]!.Trim(),
             CheckIntervalHours = Math.Clamp(GetInt(section["CheckIntervalHours"], defaultValue: 6), 1, 168),
             AllowPrerelease = GetBool(section["AllowPrerelease"], defaultValue: false),
             ApplyStagedUpdateOnStartup = GetBool(section["ApplyStagedUpdateOnStartup"], defaultValue: true)

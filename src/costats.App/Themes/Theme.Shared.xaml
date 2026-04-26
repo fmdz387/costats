@@ -1,0 +1,9 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="AccentBrush" Color="#6366F1" />
+    <SolidColorBrush x:Key="CodexAccent" Color="#10B981" />
+    <SolidColorBrush x:Key="ClaudeAccent" Color="#F97316" />
+    <SolidColorBrush x:Key="CopilotAccent" Color="#6E40C9" />
+    <SolidColorBrush x:Key="SessionAccent" Color="#F59E0B" />
+    <SolidColorBrush x:Key="WeeklyAccent" Color="#8B5CF6" />
+</ResourceDictionary>

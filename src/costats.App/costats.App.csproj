@@ -12,12 +12,12 @@
     <!-- App metadata -->
     <Product>costats</Product>
     <Description>Usage statistics for Claude and Codex AI coding assistants</Description>
-    <Company>fmdz</Company>
-    <Authors>fmdz</Authors>
-    <Copyright>Copyright (c) 2026 fmdz</Copyright>
-    <RepositoryUrl>https://github.com/fmdz387/costats</RepositoryUrl>
+    <Company>Riley Cornelius</Company>
+    <Authors>Riley Cornelius</Authors>
+    <Copyright>Copyright (c) 2026 Riley Cornelius</Copyright>
+    <RepositoryUrl>https://github.com/RileyCornelius/costats</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageProjectUrl>https://github.com/fmdz387/costats</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/RileyCornelius/costats</PackageProjectUrl>
 
     <!-- Publishing configuration -->
     <PublishSingleFile>true</PublishSingleFile>
@@ -52,6 +52,8 @@
     <PackageReference Include="H.NotifyIcon.Wpf" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
     <PackageReference Include="NHotkey.Wpf" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Settings.Configuration" />

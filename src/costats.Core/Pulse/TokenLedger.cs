@@ -8,9 +8,10 @@ public sealed record TokenLedger
     public required int StandardInput { get; init; }
     public required int CachedInput { get; init; }
     public required int GeneratedOutput { get; init; }
+    public int ReasoningOutput { get; init; }
     public int CacheWriteInput { get; init; } // Claude-specific
 
-    public int TotalConsumed => StandardInput + CachedInput + GeneratedOutput + CacheWriteInput;
+    public int TotalConsumed => StandardInput + CachedInput + GeneratedOutput + ReasoningOutput + CacheWriteInput;
     public int NetInput => StandardInput + CacheWriteInput; // Excludes cache reads
 
     public static TokenLedger Empty => new()
@@ -18,6 +19,7 @@ public sealed record TokenLedger
         StandardInput = 0,
         CachedInput = 0,
         GeneratedOutput = 0,
+        ReasoningOutput = 0,
         CacheWriteInput = 0
     };
 
@@ -26,6 +28,7 @@ public sealed record TokenLedger
         StandardInput = StandardInput + other.StandardInput,
         CachedInput = CachedInput + other.CachedInput,
         GeneratedOutput = GeneratedOutput + other.GeneratedOutput,
+        ReasoningOutput = ReasoningOutput + other.ReasoningOutput,
         CacheWriteInput = CacheWriteInput + other.CacheWriteInput
     };
 }
